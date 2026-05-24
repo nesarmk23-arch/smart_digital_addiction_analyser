@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NeuralSync — Intelligence Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--c1:#00fff0;--c2:#ff00aa;--c3:#7b2fff;--c4:#00ff88;--c5:#ffaa00;--bg:#030712;--glass:rgba(0,255,240,0.04);--border:rgba(0,255,240,0.12)}
+html,body{min-height:100%;background:var(--bg);font-family:'Rajdhani',sans-serif;color:#fff;overflow-x:hidden}
+canvas#bg3d{position:fixed;top:0;left:0;z-index:0;pointer-events:none}
+.noise{position:fixed;inset:0;z-index:1;opacity:.02;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none}
+.scan-line{position:fixed;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--c2),transparent);animation:scan 10s linear infinite;z-index:2;pointer-events:none;opacity:.15}
+@keyframes scan{0%{top:-1px}100%{top:100vh}}
+.page{position:relative;z-index:3;padding:0 2rem 5rem}
+nav{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1rem;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(3,7,18,.7);position:sticky;top:0;z-index:100;margin:0 -2rem 2rem}
+.logo{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;background:linear-gradient(135deg,var(--c1),var(--c2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px}
+.nav-links{display:flex;gap:1.5rem}
+.nav-links a{color:rgba(255,255,255,.5);text-decoration:none;font-family:'Share Tech Mono',monospace;font-size:.75rem;letter-spacing:2px;transition:.3s}
+.nav-links a:hover,.nav-links a.active{color:var(--c1)}
+.report-header{text-align:center;padding:2rem 0;margin-bottom:2rem;position:relative}
+.report-header::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,var(--c1),transparent)}
+.report-id{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.3);letter-spacing:4px;margin-bottom:.5rem}
+.report-title{font-family:'Orbitron',monospace;font-size:clamp(1.4rem,3.5vw,2.2rem);font-weight:900;background:linear-gradient(135deg,var(--c1),var(--c2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}
+.report-ts{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.25);letter-spacing:2px}
+.no-data{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:2rem}
+.no-data p{font-family:'Share Tech Mono',monospace;font-size:.8rem;color:rgba(255,255,255,.4);letter-spacing:3px}
+.go-btn{padding:.8rem 2rem;border:1px solid var(--c1);border-radius:4px;background:rgba(0,255,240,.05);color:var(--c1);font-family:'Orbitron',monospace;font-size:.75rem;letter-spacing:2px;text-decoration:none;transition:.3s}
+.go-btn:hover{background:rgba(0,255,240,.15);box-shadow:0 0 20px rgba(0,255,240,.2)}
+.report-grid{max-width:1400px;margin:0 auto;display:grid;gap:1.5rem}
+.row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem}
+.row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.row-1{display:grid;grid-template-columns:1fr;gap:1.5rem}
+@media(max-width:1100px){.row-4{grid-template-columns:repeat(2,1fr)}.row-3{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.row-4,.row-3,.row-2{grid-template-columns:1fr}}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:1.5rem;backdrop-filter:blur(20px);position:relative;overflow:hidden;animation:cardIn .5s ease both}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c1),transparent);opacity:.4}
+@keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.card:nth-child(2){animation-delay:.1s}.card:nth-child(3){animation-delay:.2s}.card:nth-child(4){animation-delay:.3s}
+.card-label{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:rgba(255,255,255,.35);letter-spacing:3px;text-transform:uppercase;margin-bottom:.4rem}
+.big-num{font-family:'Orbitron',monospace;font-size:3rem;font-weight:900;line-height:1}
+.big-num.cyan{color:var(--c1);text-shadow:0 0 30px rgba(0,255,240,.5)}
+.big-num.pink{color:var(--c2);text-shadow:0 0 30px rgba(255,0,170,.5)}
+.big-num.green{color:var(--c4);text-shadow:0 0 30px rgba(0,255,136,.5)}
+.big-num.amber{color:var(--c5);text-shadow:0 0 30px rgba(255,170,0,.5)}
+.big-num.purple{color:var(--c3);text-shadow:0 0 30px rgba(123,47,255,.5)}
+.num-unit{font-family:'Rajdhani',sans-serif;font-size:.9rem;color:rgba(255,255,255,.3);margin-left:.3rem}
+.num-sub{font-size:.8rem;color:rgba(255,255,255,.4);margin-top:.3rem;font-family:'Rajdhani',sans-serif}
+.corner-tl{position:absolute;top:8px;left:8px;width:10px;height:10px;border-top:1px solid var(--c1);border-left:1px solid var(--c1);opacity:.4}
+.corner-br{position:absolute;bottom:8px;right:8px;width:10px;height:10px;border-bottom:1px solid var(--c1);border-right:1px solid var(--c1);opacity:.4}
+.card-title{font-family:'Orbitron',monospace;font-size:.75rem;color:rgba(255,255,255,.5);letter-spacing:2px;margin-bottom:1.2rem;display:flex;align-items:center;gap:.6rem}
+.card-title::before{content:'';width:3px;height:14px;background:linear-gradient(180deg,var(--c1),var(--c3));border-radius:2px}
+canvas.chart{max-height:220px}
+.progress-list{display:flex;flex-direction:column;gap:.9rem}
+.prog-item{}
+.prog-head{display:flex;justify-content:space-between;margin-bottom:.4rem;font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.5)}
+.prog-bar{height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.behavior-card{background:linear-gradient(135deg,rgba(123,47,255,.15),rgba(0,255,240,.05));border:1px solid rgba(123,47,255,.3)}
+.behavior-name{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;color:var(--c3);margin-bottom:.5rem;text-shadow:0 0 20px rgba(123,47,255,.5)}
+.behavior-desc{font-size:.9rem;color:rgba(255,255,255,.5);line-height:1.6}
+.trend-row{display:flex;align-items:center;gap:1rem;margin-top:1rem}
+.trend-chip{padding:.4rem 1rem;border-radius:50px;font-family:'Share Tech Mono',monospace;font-size:.7rem;letter-spacing:2px}
+.trend-chip.improving{border:1px solid var(--c4);color:var(--c4);background:rgba(0,255,136,.1)}
+.trend-chip.stable{border:1px solid var(--c5);color:var(--c5);background:rgba(255,170,0,.1)}
+.trend-chip.declining{border:1px solid var(--c2);color:var(--c2);background:rgba(255,0,170,.1)}
+.trend-chip.critical{border:1px solid #ff4444;color:#ff4444;background:rgba(255,68,68,.1)}
+.insights-full{display:flex;flex-direction:column;gap:.8rem}
+.insight-row{display:flex;gap:1rem;padding:.9rem 1rem;background:rgba(0,0,0,.3);border-left:2px solid var(--c2);border-radius:0 4px 4px 0;font-size:.9rem;color:rgba(255,255,255,.7);line-height:1.5;animation:fadeIn .4s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.insight-row:nth-child(2){animation-delay:.1s}.insight-row:nth-child(3){animation-delay:.2s}.insight-row:nth-child(4){animation-delay:.3s}.insight-row:nth-child(5){animation-delay:.4s}
+.app-probs{display:flex;flex-direction:column;gap:.7rem;margin-top:.5rem}
+.app-prob-item{display:flex;align-items:center;gap:.8rem;font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.5)}
+.app-prob-bar-wrap{flex:1;height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
+.app-prob-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--c3),var(--c1))}
+.app-prob-pct{width:35px;text-align:right;color:var(--c1)}
+.holo-ring{position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;border:1px solid rgba(0,255,240,.1);animation:spin-slow 20s linear infinite;pointer-events:none}
+.holo-ring-2{position:absolute;top:-15px;right:-15px;width:90px;height:90px;border-radius:50%;border:1px solid rgba(255,0,170,.08);animation:spin-slow 15s linear infinite reverse;pointer-events:none}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+.reanalyze-btn{display:block;text-align:center;padding:1rem;border:1px solid var(--c1);border-radius:6px;color:var(--c1);font-family:'Orbitron',monospace;font-size:.8rem;letter-spacing:2px;text-decoration:none;transition:.3s;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)}
+.reanalyze-btn:hover{background:rgba(0,255,240,.1);box-shadow:0 0 30px rgba(0,255,240,.2);transform:translateY(-2px)}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;position:relative}
+svg.gauge{overflow:visible}
+.gauge-text{font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:900;fill:var(--c1);text-anchor:middle;dominant-baseline:middle}
+.gauge-sub-text{font-family:'Share Tech Mono',monospace;font-size:.5rem;fill:rgba(255,255,255,.3);text-anchor:middle;dominant-baseline:middle;letter-spacing:3px}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="scan-line"></div>
+<canvas id="bg3d"></canvas>
+<div class="page">
+<nav>
+  <div class="logo">NEURALSYNC</div>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/dashboard">Analyze</a>
+    <a href="/result" class="active">Results</a>
+  </div>
+</nav>
+
+<div id="no-data" class="no-data" style="display:none">
+  <p>// NO ANALYSIS DATA FOUND</p>
+  <a href="/dashboard" class="go-btn">RUN ANALYSIS FIRST</a>
+</div>
+
+<div id="report-wrap" style="display:none">
+  <div class="report-header">
+    <div class="report-id">// BEHAVIORAL INTELLIGENCE REPORT</div>
+    <div class="report-title">Neural Analysis Complete</div>
+    <div class="report-ts" id="report-ts"></div>
+  </div>
+  <div class="report-grid">
+    <div class="row-4" id="top-metrics"></div>
+    <div class="row-3" id="mid-row"></div>
+    <div class="row-2" id="chart-row"></div>
+    <div class="row-2" id="lower-row"></div>
+    <div class="row-1" id="bottom-row"></div>
+  </div>
+</div>
+</div>
+
+<script>
+const d=JSON.parse(localStorage.getItem('ns_result')||'null');
+const p=JSON.parse(localStorage.getItem('ns_payload')||'null');
+
+if(!d||!p){document.getElementById('no-data').style.display='flex'}
+else{
+  document.getElementById('report-wrap').style.display='block';
+  document.getElementById('report-ts').textContent='GENERATED: '+new Date().toLocaleString().toUpperCase()+' // SESSION ACTIVE';
+  buildReport();
+}
+
+function buildReport(){
+  // Top metrics
+  document.getElementById('top-metrics').innerHTML=`
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div><div class="holo-ring"></div><div class="holo-ring-2"></div><div class="card-label">Wellness Score</div><div class="big-num cyan" id="n1">0</div><div class="num-sub">Overall digital health index</div></div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div><div class="card-label">Addiction Probability</div><div class="big-num pink" id="n2">0</div><span class="num-unit" style="color:var(--c2)">%</span><div class="num-sub">Model confidence: behavioral</div></div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div><div class="card-label">Productivity Index</div><div class="big-num green" id="n3">0</div><div class="num-sub">Normalized output score</div></div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div><div class="card-label">Risk Score</div><div class="big-num amber" id="n4">0</div><div class="num-sub">Behavioral hazard level</div></div>`;
+  setTimeout(()=>{
+    animN('n1',d.wellness_score);animN('n2',Math.round(d.addiction_probability));
+    animN('n3',d.productivity_index);animN('n4',d.risk_score);
+  },200);
+
+  // Mid row: behavior card, gauge, progress list
+  const trendClass=({'Improving':'improving','Stable':'stable','Declining':'declining','Critical':'critical'}[d.trend_label])||'stable';
+  document.getElementById('mid-row').innerHTML=`
+    <div class="card behavior-card"><div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="card-title">Behavior Profile</div>
+      <div class="behavior-name">${d.behavior_label}</div>
+      <div class="behavior-desc">Category: <strong style="color:var(--c1)">${d.app_category}</strong> — Your digital behavior pattern has been classified based on 16 behavioral vectors and 3 AI models.</div>
+      <div class="trend-row"><span style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.3);letter-spacing:2px">TREND:</span><span class="trend-chip ${trendClass}">${d.trend_label}</span></div>
+    </div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="card-title">Wellness Gauge</div>
+      <div class="gauge-wrap"><svg class="gauge" width="170" height="170" viewBox="0 0 170 170">
+        <circle cx="85" cy="85" r="70" fill="none" stroke="rgba(0,255,240,0.06)" stroke-width="10"/>
+        <circle cx="85" cy="85" r="70" fill="none" stroke="url(#gg)" stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="${2*Math.PI*70}" stroke-dashoffset="${2*Math.PI*70*(1-d.wellness_score/100)}"
+          transform="rotate(-90 85 85)" style="transition:stroke-dashoffset 1.5s ease"/>
+        <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#7b2fff"/><stop offset="100%" stop-color="#00fff0"/></linearGradient></defs>
+        <text class="gauge-text" x="85" y="80">${Math.round(d.wellness_score)}</text>
+        <text class="gauge-sub-text" x="85" y="100">WELLNESS</text>
+      </svg></div>
+    </div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="card-title">Signal Breakdown</div>
+      <div class="progress-list">
+        ${bars([['Focus Score',p.focus_score,'#00ff88'],['Productivity',p.productivity_score,'#00fff0'],['Addiction Risk',d.addiction_probability,'#ff00aa'],['Risk Level',d.risk_score,'#ffaa00'],['Wellness',d.wellness_score,'#7b2fff']])}
+      </div>
+    </div>`;
+
+  // Chart row
+  document.getElementById('chart-row').innerHTML=`
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div><div class="card-title">Usage Profile Radar</div><canvas class="chart" id="radar2"></canvas></div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div><div class="card-title">App Time Distribution</div><canvas class="chart" id="bar2"></canvas></div>`;
+
+  // Lower row
+  const cats=['Highly Productive','Balanced','Social Heavy','Gaming Addicted','Doom Scroller','Night Owl','Distracted'];
+  document.getElementById('lower-row').innerHTML=`
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="card-title">App Classification Probabilities</div>
+      <div class="app-probs">${(d.app_probabilities||[]).slice(0,7).map((v,i)=>`<div class="app-prob-item"><span style="width:90px;overflow:hidden;white-space:nowrap">${cats[i]||'Class '+i}</span><div class="app-prob-bar-wrap"><div class="app-prob-fill" style="width:${Math.round(v*100)}%"></div></div><span class="app-prob-pct">${(v*100).toFixed(1)}%</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="card-title">Night vs Day Usage</div>
+      <canvas class="chart" id="nightChart"></canvas>
+    </div>`;
+
+  // Bottom row: insights + cta
+  document.getElementById('bottom-row').innerHTML=`
+    <div class="card"><div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="card-title">AI Behavioral Insights</div>
+      <div class="insights-full">${(d.insights||[]).map(i=>`<div class="insight-row">${i}</div>`).join('')}</div>
+      <a href="/dashboard" class="reanalyze-btn" style="margin-top:1.5rem">⚡ RE-ANALYZE BEHAVIOR</a>
+    </div>`;
+
+  // Build charts
+  setTimeout(()=>{
+    new Chart(document.getElementById('radar2').getContext('2d'),{type:'radar',data:{labels:['Screen','Gaming','Social','Reels','Night','Focus','Productivity','Study','AI Tools','Chat'],datasets:[{label:'Usage',data:[p.screen_time/16*100,p.gaming_hours/12*100,p.social_media/10*100,p.reels_usage/6*100,p.night_usage/6*100,p.focus_score,p.productivity_score,p.study_hours/14*100,p.ai_tools/8*100,p.chat_usage/6*100],backgroundColor:'rgba(123,47,255,0.15)',borderColor:'#7b2fff',pointBackgroundColor:'#00fff0',borderWidth:1.5}]},options:{responsive:true,scales:{r:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{display:false},pointLabels:{color:'rgba(255,255,255,0.45)',font:{size:9,family:'Share Tech Mono'}}}},plugins:{legend:{display:false}}}});
+    new Chart(document.getElementById('bar2').getContext('2d'),{type:'bar',data:{labels:['Screen','Gaming','Social','Reels','YouTube','Chat','AI Tools','Study'],datasets:[{label:'Hours',data:[p.screen_time,p.gaming_hours,p.social_media,p.reels_usage,p.youtube_usage,p.chat_usage,p.ai_tools,p.study_hours],backgroundColor:['rgba(0,255,240,.7)','rgba(255,0,170,.7)','rgba(123,47,255,.7)','rgba(255,100,50,.7)','rgba(255,170,0,.7)','rgba(0,180,255,.7)','rgba(0,255,136,.7)','rgba(0,255,240,.5)'],borderWidth:0,borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:9,family:'Share Tech Mono'}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:9}}}}}});
+    new Chart(document.getElementById('nightChart').getContext('2d'),{type:'doughnut',data:{labels:['Daytime Usage','Night Usage'],datasets:[{data:[Math.max(0,p.screen_time-p.night_usage),p.night_usage],backgroundColor:['rgba(0,255,240,.6)','rgba(123,47,255,.8)'],borderColor:'rgba(0,0,0,.5)',borderWidth:2}]},options:{responsive:true,plugins:{legend:{labels:{color:'rgba(255,255,255,0.5)',font:{size:10,family:'Share Tech Mono'},boxWidth:10}}}}});
+  },300);
+}
+
+function bars(items){return items.map(([l,v,c])=>`<div class="prog-item"><div class="prog-head"><span>${l}</span><span style="color:${c}">${Math.round(v)}</span></div><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,Math.round(v))}%;background:${c}"></div></div></div>`).join('')}
+
+function animN(id,target){
+  let v=0,step=target/50,el=document.getElementById(id);
+  if(!el)return;
+  const t=setInterval(()=>{v+=step;el.textContent=Math.min(Math.round(v),target);if(v>=target)clearInterval(t)},25);
+}
+
+// Three.js BG
+const sc=new THREE.Scene(),ca=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,1000);
+const re=new THREE.WebGLRenderer({canvas:document.getElementById('bg3d'),alpha:true,antialias:true});
+re.setSize(innerWidth,innerHeight);re.setPixelRatio(Math.min(devicePixelRatio,2));ca.position.z=40;
+const pp=new Float32Array(1500);for(let i=0;i<1500;i++)pp[i]=(Math.random()-.5)*100;
+const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.BufferAttribute(pp,3));
+const mm=new THREE.PointsMaterial({size:.1,color:0xff00aa,transparent:true,opacity:.25});
+sc.add(new THREE.Points(gg,mm));
+const gG=new THREE.PlaneGeometry(100,100,25,25);
+const gM=new THREE.MeshBasicMaterial({color:0xff00aa,wireframe:true,transparent:true,opacity:.02});
+const gr=new THREE.Mesh(gG,gM);gr.rotation.x=-Math.PI/2;gr.position.y=-25;sc.add(gr);
+let ti=0;(function a(){requestAnimationFrame(a);ti+=.001;sc.children[0].rotation.y=ti*.15;gr.position.z=(ti*1.2)%4;re.render(sc,ca)})();
+window.addEventListener('resize',()=>{ca.aspect=innerWidth/innerHeight;ca.updateProjectionMatrix();re.setSize(innerWidth,innerHeight)});
+</script>
+</body>
+</html>

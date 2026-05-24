@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>NeuralSync — Analysis Dashboard</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --c1: #00fff0;
+      --c2: #ff00aa;
+      --c3: #7b2fff;
+      --c4: #00ff88;
+      --c5: #ffaa00;
+      --bg: #030712;
+      --glass: rgba(0, 255, 240, 0.04);
+      --border: rgba(0, 255, 240, 0.12)
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      font-family: 'Rajdhani', sans-serif;
+      color: #fff;
+      overflow-x: hidden
+    }
+
+    canvas#bg3d {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      pointer-events: none
+    }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      opacity: .02;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      pointer-events: none
+    }
+
+    .scan-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--c1), transparent);
+      animation: scan 8s linear infinite;
+      z-index: 2;
+      pointer-events: none;
+      opacity: .2
+    }
+
+    @keyframes scan {
+      0% {
+        top: -1px
+      }
+
+      100% {
+        top: 100vh
+      }
+    }
+
+    .page {
+      position: relative;
+      z-index: 3;
+      padding: 0 2rem 4rem
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      background: rgba(3, 7, 18, .7);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      margin: 0 -2rem 2rem
+    }
+
+    .logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--c1), var(--c2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 3px
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem
+    }
+
+    .nav-links a {
+      color: rgba(255, 255, 255, .5);
+      text-decoration: none;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .75rem;
+      letter-spacing: 2px;
+      transition: .3s
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--c1)
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-top: 1rem
+    }
+
+    .page-header .badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .65rem;
+      color: var(--c4);
+      letter-spacing: 4px;
+      margin-bottom: 1rem;
+      display: block
+    }
+
+    .page-header h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--c1), var(--c2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      max-width: 1400px;
+      margin: 0 auto
+    }
+
+    @media(max-width:1100px) {
+      .main-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .panel {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.8rem;
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--c1), transparent);
+      opacity: .5
+    }
+
+    .panel-title {
+      font-family: 'Orbitron', monospace;
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--c1);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: .8rem
+    }
+
+    .panel-title::before {
+      content: '';
+      width: 3px;
+      height: 16px;
+      background: linear-gradient(180deg, var(--c1), var(--c3));
+      border-radius: 2px
+    }
+
+    .slider-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem
+    }
+
+    @media(max-width:600px) {
+      .slider-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .slider-item {
+      position: relative
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .5rem
+    }
+
+    .slider-name {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .7rem;
+      color: rgba(255, 255, 255, .6);
+      letter-spacing: 1px;
+      text-transform: uppercase
+    }
+
+    .slider-val {
+      font-family: 'Orbitron', monospace;
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--c1)
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, .08);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--c1);
+      box-shadow: 0 0 8px var(--c1);
+      cursor: pointer;
+      transition: .2s
+    }
+
+    input[type=range]:hover::-webkit-slider-thumb {
+      transform: scale(1.3);
+      box-shadow: 0 0 15px var(--c1)
+    }
+
+    input[type=range].red::-webkit-slider-thumb {
+      background: var(--c2);
+      box-shadow: 0 0 8px var(--c2)
+    }
+
+    input[type=range].purple::-webkit-slider-thumb {
+      background: var(--c3);
+      box-shadow: 0 0 8px var(--c3)
+    }
+
+    input[type=range].green::-webkit-slider-thumb {
+      background: var(--c4);
+      box-shadow: 0 0 8px var(--c4)
+    }
+
+    input[type=range].amber::-webkit-slider-thumb {
+      background: var(--c5);
+      box-shadow: 0 0 8px var(--c5)
+    }
+
+    .results-panel {
+      grid-column: 1/-1
+    }
+
+    .metric-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem
+    }
+
+    @media(max-width:900px) {
+      .metric-cards {
+        grid-template-columns: repeat(2, 1fr)
+      }
+    }
+
+    @media(max-width:500px) {
+      .metric-cards {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .metric-card {
+      background: rgba(0, 0, 0, .3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: .3s
+    }
+
+    .metric-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      opacity: 0;
+      transition: .3s
+    }
+
+    .metric-card:hover {
+      transform: translateY(-3px)
+    }
+
+    .metric-card.glow-cyan::after {
+      box-shadow: inset 0 0 30px rgba(0, 255, 240, .1);
+      opacity: 1
+    }
+
+    .metric-card.glow-pink::after {
+      box-shadow: inset 0 0 30px rgba(255, 0, 170, .1);
+      opacity: 1
+    }
+
+    .metric-card.glow-green::after {
+      box-shadow: inset 0 0 30px rgba(0, 255, 136, .1);
+      opacity: 1
+    }
+
+    .metric-card.glow-amber::after {
+      box-shadow: inset 0 0 30px rgba(255, 170, 0, .1);
+      opacity: 1
+    }
+
+    .metric-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .6rem;
+      color: rgba(255, 255, 255, .4);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: .5rem
+    }
+
+    .metric-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 2rem;
+      font-weight: 900;
+      line-height: 1
+    }
+
+    .metric-value.cyan {
+      color: var(--c1);
+      text-shadow: 0 0 20px var(--c1)
+    }
+
+    .metric-value.pink {
+      color: var(--c2);
+      text-shadow: 0 0 20px var(--c2)
+    }
+
+    .metric-value.green {
+      color: var(--c4);
+      text-shadow: 0 0 20px var(--c4)
+    }
+
+    .metric-value.amber {
+      color: var(--c5);
+      text-shadow: 0 0 20px var(--c5)
+    }
+
+    .metric-sub {
+      font-size: .75rem;
+      color: rgba(255, 255, 255, .3);
+      margin-top: .3rem;
+      font-family: 'Rajdhani', sans-serif
+    }
+
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem
+    }
+
+    @media(max-width:800px) {
+      .chart-row {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .chart-box {
+      background: rgba(0, 0, 0, .3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem
+    }
+
+    .chart-box h4 {
+      font-family: 'Orbitron', monospace;
+      font-size: .7rem;
+      color: rgba(255, 255, 255, .5);
+      letter-spacing: 2px;
+      margin-bottom: 1rem
+    }
+
+    canvas.chart {
+      max-height: 200px
+    }
+
+    .risk-bar-wrap {
+      margin-bottom: 1.2rem
+    }
+
+    .risk-bar-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: .5rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .7rem;
+      color: rgba(255, 255, 255, .5)
+    }
+
+    .risk-bar {
+      height: 8px;
+      background: rgba(255, 255, 255, .05);
+      border-radius: 4px;
+      overflow: hidden
+    }
+
+    .risk-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 1s cubic-bezier(.4, 0, .2, 1)
+    }
+
+    .insights-list {
+      display: flex;
+      flex-direction: column;
+      gap: .7rem
+    }
+
+    .insight-item {
+      background: rgba(0, 0, 0, .3);
+      border-left: 2px solid var(--c2);
+      padding: .8rem 1rem;
+      border-radius: 0 4px 4px 0;
+      font-size: .9rem;
+      color: rgba(255, 255, 255, .7);
+      animation: fadeIn .5s ease
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateX(-10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .behavior-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .5rem 1.2rem;
+      border-radius: 50px;
+      font-family: 'Orbitron', monospace;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      border: 1px solid var(--c3);
+      background: rgba(123, 47, 255, .15);
+      color: var(--c3);
+      margin-bottom: 1rem
+    }
+
+    .run-btn {
+      width: 100%;
+      padding: 1.1rem;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--c1), var(--c3));
+      color: #000;
+      font-family: 'Orbitron', monospace;
+      font-size: .9rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: .3s;
+      position: relative;
+      overflow: hidden;
+      clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+      margin-top: 1.5rem
+    }
+
+    .run-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 40px rgba(0, 255, 240, .4)
+    }
+
+    .run-btn:active {
+      transform: scale(.98)
+    }
+
+    .run-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none
+    }
+
+    .loader {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      gap: 1rem
+    }
+
+    .loader.active {
+      display: flex
+    }
+
+    .loader-ring {
+      width: 60px;
+      height: 60px;
+      border: 2px solid rgba(0, 255, 240, .1);
+      border-top-color: var(--c1);
+      border-radius: 50%;
+      animation: spin 1s linear infinite
+    }
+
+    .loader-ring2 {
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(255, 0, 170, .1);
+      border-bottom-color: var(--c2);
+      border-radius: 50%;
+      animation: spin 1.5s linear infinite reverse;
+      position: absolute
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .loader-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .7rem;
+      color: var(--c1);
+      letter-spacing: 3px;
+      animation: blink 1s infinite
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* ERROR PANEL */
+    .error-panel {
+      grid-column: 1/-1;
+      background: rgba(255, 0, 85, .06);
+      border: 1px solid rgba(255, 0, 85, .35);
+      border-radius: 8px;
+      padding: 1.8rem;
+      display: none
+    }
+
+    .error-panel.visible {
+      display: block
+    }
+
+    .error-title {
+      font-family: 'Orbitron', monospace;
+      font-size: .85rem;
+      font-weight: 700;
+      color: #ff4455;
+      letter-spacing: 2px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem
+    }
+
+    .error-body {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .75rem;
+      color: rgba(255, 255, 255, .6);
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: rgba(0, 0, 0, .4);
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      max-height: 200px;
+      overflow-y: auto
+    }
+
+    .error-steps {
+      font-size: .9rem;
+      color: rgba(255, 255, 255, .5);
+      line-height: 1.9
+    }
+
+    .error-steps strong {
+      color: var(--c5);
+      font-family: 'Share Tech Mono', monospace
+    }
+
+    .dismiss-btn {
+      padding: .5rem 1.2rem;
+      border: 1px solid rgba(255, 0, 85, .4);
+      border-radius: 4px;
+      background: transparent;
+      color: #ff4455;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .7rem;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: .3s
+    }
+
+    .dismiss-btn:hover {
+      background: rgba(255, 0, 85, .1)
+    }
+
+    .corner-tl,
+    .corner-br {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      pointer-events: none
+    }
+
+    .corner-tl {
+      top: 8px;
+      left: 8px;
+      border-top: 1px solid var(--c1);
+      border-left: 1px solid var(--c1);
+      opacity: .5
+    }
+
+    .corner-br {
+      bottom: 8px;
+      right: 8px;
+      border-bottom: 1px solid var(--c1);
+      border-right: 1px solid var(--c1);
+      opacity: .5
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--c4);
+      box-shadow: 0 0 8px var(--c4);
+      animation: pulse-dot 2s infinite
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .5;
+        transform: scale(.7)
+      }
+    }
+
+    .view-report-btn {
+      display: block;
+      text-align: center;
+      padding: .8rem;
+      border: 1px solid var(--c4);
+      border-radius: 6px;
+      color: var(--c4);
+      font-family: 'Orbitron', monospace;
+      font-size: .8rem;
+      letter-spacing: 2px;
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: .3s
+    }
+
+    .view-report-btn:hover {
+      background: rgba(0, 255, 136, .1);
+      box-shadow: 0 0 20px rgba(0, 255, 136, .2)
+    }
+
+    .server-status {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: 2px;
+      padding: .4rem .9rem;
+      border-radius: 50px;
+      border: 1px solid rgba(255, 255, 255, .1)
+    }
+
+    .server-status .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%
+    }
+
+    .server-status.online .dot {
+      background: var(--c4);
+      box-shadow: 0 0 6px var(--c4)
+    }
+
+    .server-status.offline .dot {
+      background: #ff4455;
+      box-shadow: 0 0 6px #ff4455
+    }
+
+    .server-status.checking .dot {
+      background: var(--c5);
+      box-shadow: 0 0 6px var(--c5);
+      animation: blink 1s infinite
+    }
+  </style>
+</head>
+
+<body>
+  <div class="noise"></div>
+  <div class="scan-line"></div>
+  <canvas id="bg3d"></canvas>
+  <div class="page">
+    <nav>
+      <div class="logo">NEURALSYNC</div>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/dashboard" class="active">Analyze</a>
+        <a href="/result">Results</a>
+        <div class="server-status checking" id="server-status">
+          <div class="dot"></div><span id="status-text">CHECKING</span>
+        </div>
+      </div>
+    </nav>
+    <div class="page-header">
+      <span class="badge">// BEHAVIORAL ANALYSIS ENGINE — ONLINE</span>
+      <h1>Digital Behavior Dashboard</h1>
+    </div>
+
+    <div class="main-grid">
+      <!-- INPUT PANEL 1 -->
+      <div class="panel">
+        <div class="corner-tl"></div>
+        <div class="corner-br"></div>
+        <div class="panel-title">Screen &amp; App Usage Vectors</div>
+        <div class="slider-grid">
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Screen Time</span><span class="slider-val"
+                id="v_screen">6 hrs</span></div>
+            <input type="range" id="screen_time" min="0" max="16" step=".5" value="6"
+              oninput="upd(this,'v_screen',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Gaming Hours</span><span class="slider-val"
+                id="v_gaming">2 hrs</span></div>
+            <input type="range" class="red" id="gaming_hours" min="0" max="12" step=".5" value="2"
+              oninput="upd(this,'v_gaming',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Social Media</span><span class="slider-val"
+                id="v_social">2 hrs</span></div>
+            <input type="range" class="purple" id="social_media" min="0" max="10" step=".5" value="2"
+              oninput="upd(this,'v_social',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">AI Tools Usage</span><span class="slider-val"
+                id="v_ai">1 hrs</span></div>
+            <input type="range" class="green" id="ai_tools" min="0" max="8" step=".5" value="1"
+              oninput="upd(this,'v_ai',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Reels Usage</span><span class="slider-val"
+                id="v_reels">1 hrs</span></div>
+            <input type="range" class="red" id="reels_usage" min="0" max="6" step=".5" value="1"
+              oninput="upd(this,'v_reels',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">YouTube Usage</span><span class="slider-val" id="v_yt">1
+                hrs</span></div>
+            <input type="range" id="youtube_usage" min="0" max="8" step=".5" value="1"
+              oninput="upd(this,'v_yt',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Chat Usage</span><span class="slider-val" id="v_chat">1
+                hrs</span></div>
+            <input type="range" class="purple" id="chat_usage" min="0" max="6" step=".5" value="1"
+              oninput="upd(this,'v_chat',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Night Usage</span><span class="slider-val"
+                id="v_night">0 hrs</span></div>
+            <input type="range" class="amber" id="night_usage" min="0" max="6" step=".5" value="0"
+              oninput="upd(this,'v_night',' hrs')">
+          </div>
+        </div>
+      </div>
+
+      <!-- INPUT PANEL 2 -->
+      <div class="panel">
+        <div class="corner-tl"></div>
+        <div class="corner-br"></div>
+        <div class="panel-title">Behavioral &amp; Cognitive Signals</div>
+        <div class="slider-grid">
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Study/Work Hrs</span><span class="slider-val"
+                id="v_study">6 hrs</span></div>
+            <input type="range" class="green" id="study_hours" min="0" max="14" step=".5" value="6"
+              oninput="upd(this,'v_study',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Sleep Hours</span><span class="slider-val"
+                id="v_sleep">7 hrs</span></div>
+            <input type="range" class="green" id="sleep_hours" min="2" max="12" step=".5" value="7"
+              oninput="upd(this,'v_sleep',' hrs')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Phone Unlocks</span><span class="slider-val"
+                id="v_unlocks">40</span></div>
+            <input type="range" class="amber" id="phone_unlocks" min="0" max="200" step="1" value="40"
+              oninput="upd(this,'v_unlocks','')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Notifications</span><span class="slider-val"
+                id="v_notifs">80</span></div>
+            <input type="range" class="red" id="notifications" min="0" max="500" step="5" value="80"
+              oninput="upd(this,'v_notifs','')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">App Switches</span><span class="slider-val"
+                id="v_switches">30</span></div>
+            <input type="range" class="purple" id="app_switches" min="0" max="200" step="1" value="30"
+              oninput="upd(this,'v_switches','')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Focus Score</span><span class="slider-val"
+                id="v_focus">60</span></div>
+            <input type="range" class="green" id="focus_score" min="0" max="100" step="1" value="60"
+              oninput="upd(this,'v_focus','')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Productivity</span><span class="slider-val"
+                id="v_prod">60</span></div>
+            <input type="range" class="green" id="productivity_score" min="0" max="100" step="1" value="60"
+              oninput="upd(this,'v_prod','')">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label"><span class="slider-name">Stress Level</span><span class="slider-val"
+                id="v_stress">5/10</span></div>
+            <input type="range" class="red" id="stress_level" min="0" max="10" step=".5" value="5"
+              oninput="upd(this,'v_stress','/10')">
+          </div>
+        </div>
+        <button class="run-btn" id="run-btn" onclick="runAnalysis()">&#9889; EXECUTE NEURAL ANALYSIS</button>
+      </div>
+
+      <!-- ERROR PANEL -->
+      <div class="error-panel" id="error-panel">
+        <div class="error-title">&#9888; ANALYSIS FAILED — DIAGNOSTIC REPORT</div>
+        <div class="error-body" id="error-body"></div>
+        <div class="error-steps" id="error-steps"></div>
+        <br>
+        <button class="dismiss-btn" onclick="dismissError()">DISMISS</button>
+      </div>
+
+      <!-- RESULTS PANEL -->
+      <div class="panel results-panel" id="results-panel" style="display:none">
+        <div class="corner-tl"></div>
+        <div class="corner-br"></div>
+        <div class="panel-title"><span class="status-dot"></span>&nbsp;Analysis Results — Live Output</div>
+        <div class="metric-cards">
+          <div class="metric-card glow-cyan">
+            <div class="metric-label">Wellness Score</div>
+            <div class="metric-value cyan" id="r_wellness">--</div>
+            <div class="metric-sub">/ 100</div>
+          </div>
+          <div class="metric-card glow-pink">
+            <div class="metric-label">Addiction Prob</div>
+            <div class="metric-value pink" id="r_addiction">--</div>
+            <div class="metric-sub">%</div>
+          </div>
+          <div class="metric-card glow-green">
+            <div class="metric-label">Productivity</div>
+            <div class="metric-value green" id="r_productivity">--</div>
+            <div class="metric-sub">Index</div>
+          </div>
+          <div class="metric-card glow-amber">
+            <div class="metric-label">Risk Score</div>
+            <div class="metric-value amber" id="r_risk">--</div>
+            <div class="metric-sub">/ 100</div>
+          </div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-box">
+            <h4>// BEHAVIORAL VECTORS</h4><canvas class="chart" id="radarChart"></canvas>
+          </div>
+          <div class="chart-box">
+            <h4>// USAGE DISTRIBUTION</h4><canvas class="chart" id="doughnutChart"></canvas>
+          </div>
+        </div>
+        <div id="risk-bars" style="margin-bottom:1.5rem"></div>
+        <div style="margin-bottom:1rem">
+          <div id="behavior-badge-wrap"></div>
+          <div class="insights-list" id="insights-list"></div>
+        </div>
+        <a href="/result" class="view-report-btn">VIEW FULL REPORT &#8594;</a>
+      </div>
+
+      <!-- LOADER -->
+      <div class="panel results-panel" id="loader-panel" style="display:none">
+        <div class="loader active">
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;width:60px;height:60px">
+            <div class="loader-ring"></div>
+            <div class="loader-ring2"></div>
+          </div>
+          <div class="loader-text" id="loader-text">PROCESSING NEURAL VECTORS...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let radarChart = null, doughnutChart = null;
+    function upd(el, id, sfx) { document.getElementById(id).textContent = el.value + sfx }
+
+    // ── Server health check on load ──────────────────────────────────────────────
+    async function checkServer() {
+      const el = document.getElementById('server-status');
+      const tx = document.getElementById('status-text');
+      try {
+        const r = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            screen_time: 0, gaming_hours: 0, social_media: 0, ai_tools: 0,
+            study_hours: 0, phone_unlocks: 0, notifications: 0, app_switches: 0,
+            focus_score: 50, productivity_score: 50, stress_level: 5, sleep_hours: 7,
+            reels_usage: 0, youtube_usage: 0, chat_usage: 0, night_usage: 0
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (r.ok) {
+          el.className = 'server-status online'; tx.textContent = 'ONLINE';
+        } else {
+          el.className = 'server-status offline'; tx.textContent = 'ERROR ' + r.status;
+        }
+      } catch (e) {
+        el.className = 'server-status offline'; tx.textContent = 'OFFLINE';
+      }
+    }
+    checkServer();
+
+    // ── Main analysis ─────────────────────────────────────────────────────────────
+    async function runAnalysis() {
+      dismissError();
+      document.getElementById('results-panel').style.display = 'none';
+      document.getElementById('loader-panel').style.display = 'block';
+      const btn = document.getElementById('run-btn');
+      btn.disabled = true;
+      setLoader('PROCESSING NEURAL VECTORS...');
+
+      const payload = {
+        screen_time: +document.getElementById('screen_time').value,
+        gaming_hours: +document.getElementById('gaming_hours').value,
+        social_media: +document.getElementById('social_media').value,
+        ai_tools: +document.getElementById('ai_tools').value,
+        study_hours: +document.getElementById('study_hours').value,
+        phone_unlocks: +document.getElementById('phone_unlocks').value,
+        notifications: +document.getElementById('notifications').value,
+        app_switches: +document.getElementById('app_switches').value,
+        focus_score: +document.getElementById('focus_score').value,
+        productivity_score: +document.getElementById('productivity_score').value,
+        stress_level: +document.getElementById('stress_level').value,
+        sleep_hours: +document.getElementById('sleep_hours').value,
+        reels_usage: +document.getElementById('reels_usage').value,
+        youtube_usage: +document.getElementById('youtube_usage').value,
+        chat_usage: +document.getElementById('chat_usage').value,
+        night_usage: +document.getElementById('night_usage').value
+      };
+
+      try {
+        setLoader('SENDING TO AI ENGINE...');
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(30000)
+        });
+
+        // Check HTTP status first — non-2xx means Flask returned an error page/JSON
+        if (!res.ok) {
+          let errDetail = 'HTTP ' + res.status + ' ' + res.statusText;
+          try {
+            const ct = res.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              const ej = await res.json();
+              errDetail += '\n' + (ej.error || JSON.stringify(ej));
+            } else {
+              // Flask returned an HTML error page — grab first 300 chars
+              const txt = await res.text();
+              errDetail += '\nServer response: ' + txt.replace(/<[^>]+>/g, '').trim().slice(0, 300);
+            }
+          } catch (_) { }
+          showError(errDetail, 'http');
+          return;
+        }
+
+        // Verify response is actually JSON before parsing
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          const raw = await res.text();
+          showError(
+            'Server returned non-JSON response.\nContent-Type: ' + ct +
+            '\nBody preview: ' + raw.replace(/<[^>]+>/g, '').trim().slice(0, 300),
+            'json'
+          );
+          return;
+        }
+
+        setLoader('PARSING AI RESPONSE...');
+        let data;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          showError('JSON parse error: ' + parseErr.message, 'json');
+          return;
+        }
+
+        // Check if Flask returned success:false with an error message
+        if (data.success === false) {
+          showError('Backend error: ' + (data.error || 'Unknown server error'), 'backend');
+          return;
+        }
+
+        localStorage.setItem('ns_payload', JSON.stringify(payload));
+        localStorage.setItem('ns_result', JSON.stringify(data));
+        setLoader('RENDERING RESULTS...');
+        setTimeout(() => renderResults(data, payload), 100);
+
+      } catch (e) {
+        if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+          showError('Request timed out after 30 seconds.\nFlask may be processing slowly or is unresponsive.', 'timeout');
+        } else if (e.message && e.message.includes('Failed to fetch')) {
+          showError('Cannot reach Flask server.\nMake sure you ran: python app.py\nand it is listening on http://127.0.0.1:5000', 'network');
+        } else {
+          showError(e.name + ': ' + e.message, 'unknown');
+        }
+      } finally {
+        btn.disabled = false;
+        document.getElementById('loader-panel').style.display = 'none';
+      }
+    }
+
+    function setLoader(msg) { document.getElementById('loader-text').textContent = msg; }
+
+    function showError(detail, type) {
+      document.getElementById('loader-panel').style.display = 'none';
+      document.getElementById('results-panel').style.display = 'none';
+      const panel = document.getElementById('error-panel');
+      const body = document.getElementById('error-body');
+      const steps = document.getElementById('error-steps');
+      body.textContent = detail;
+      const fixes = {
+        network: '<strong>FIX:</strong> Open a terminal and run <strong>python app.py</strong><br>Then refresh this page.',
+        http: '<strong>FIX:</strong> Check Flask terminal for traceback. Common causes: model loading failed, missing .pkl file, import error.',
+        json: '<strong>FIX:</strong> Flask is running but returning HTML (error page). Check the terminal for a Python traceback.',
+        backend: '<strong>FIX:</strong> Flask returned an error. Check terminal output for the full Python traceback.',
+        timeout: '<strong>FIX:</strong> Flask is too slow. Check if calc.exe is hanging or a model is failing to predict.',
+        unknown: '<strong>FIX:</strong> Unexpected error. Open browser DevTools (F12) → Console for full details.',
+      };
+      steps.innerHTML = fixes[type] || fixes.unknown;
+      panel.classList.add('visible');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Also re-check server status
+      checkServer();
+    }
+
+    function dismissError() {
+      document.getElementById('error-panel').classList.remove('visible');
+    }
+
+    function renderResults(d, p) {
+      document.getElementById('loader-panel').style.display = 'none';
+      document.getElementById('results-panel').style.display = 'block';
+      animNum('r_wellness', d.wellness_score ?? 0);
+      animNum('r_addiction', Math.round(d.addiction_probability ?? 0));
+      animNum('r_productivity', d.productivity_index ?? 0);
+      animNum('r_risk', d.risk_score ?? 0);
+
+      const rb = document.getElementById('risk-bars');
+      const barData = [
+        { label: 'Wellness', val: d.wellness_score ?? 0, color: '#00fff0' },
+        { label: 'Productivity', val: d.productivity_index ?? 0, color: '#00ff88' },
+        { label: 'Addiction Risk', val: d.addiction_probability ?? 0, color: '#ff00aa' },
+        { label: 'Overall Risk', val: d.risk_score ?? 0, color: '#ffaa00' }
+      ];
+      rb.innerHTML = barData.map(b =>
+        `<div class="risk-bar-wrap">
+      <div class="risk-bar-label"><span>${b.label}</span><span style="color:${b.color}">${Math.round(b.val)}</span></div>
+      <div class="risk-bar"><div class="risk-fill" style="width:0%;background:${b.color}" data-target="${Math.min(100, Math.round(b.val))}"></div></div>
+    </div>`
+      ).join('');
+      setTimeout(() => rb.querySelectorAll('.risk-fill').forEach(f => f.style.width = f.dataset.target + '%'), 100);
+
+      document.getElementById('behavior-badge-wrap').innerHTML =
+        `<div class="behavior-badge">&#129710; ${d.behavior_label || 'Unknown'} | Trend: ${d.trend_label || 'Stable'}</div>`;
+
+      const insights = Array.isArray(d.insights) ? d.insights : ['No insights available.'];
+      document.getElementById('insights-list').innerHTML =
+        insights.map(i => `<div class="insight-item">${i}</div>`).join('');
+
+      buildRadar(p);
+      buildDoughnut(p);
+    }
+
+    function animNum(id, target) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      let v = 0, step = Math.max(target / 40, 1);
+      const t = setInterval(() => {
+        v += step;
+        el.textContent = Math.min(Math.round(v), target);
+        if (v >= target) clearInterval(t);
+      }, 30);
+    }
+
+    function buildRadar(p) {
+      if (radarChart) radarChart.destroy();
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['Screen', 'Gaming', 'Social', 'Reels', 'Night', 'Focus', 'Productivity', 'Study'],
+          datasets: [{
+            label: 'Your Profile',
+            data: [p.screen_time / 16 * 100, p.gaming_hours / 12 * 100, p.social_media / 10 * 100,
+            p.reels_usage / 6 * 100, p.night_usage / 6 * 100, p.focus_score,
+            p.productivity_score, p.study_hours / 14 * 100],
+            backgroundColor: 'rgba(0,255,240,0.1)', borderColor: '#00fff0',
+            pointBackgroundColor: '#00fff0', pointBorderColor: '#00fff0', borderWidth: 1.5
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            r: {
+              grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false },
+              pointLabels: { color: 'rgba(255,255,255,0.5)', font: { size: 10, family: 'Share Tech Mono' } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function buildDoughnut(p) {
+      if (doughnutChart) doughnutChart.destroy();
+      const ctx = document.getElementById('doughnutChart').getContext('2d');
+      doughnutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Gaming', 'Social', 'Reels', 'YouTube', 'Chat', 'AI Tools', 'Study'],
+          datasets: [{
+            data: [p.gaming_hours, p.social_media, p.reels_usage, p.youtube_usage,
+            p.chat_usage, p.ai_tools, p.study_hours],
+            backgroundColor: ['rgba(255,0,170,.7)', 'rgba(123,47,255,.7)', 'rgba(255,100,50,.7)',
+              'rgba(255,170,0,.7)', 'rgba(0,180,255,.7)', 'rgba(0,255,136,.7)', 'rgba(0,255,240,.7)'],
+            borderColor: 'rgba(0,0,0,.3)', borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: 'rgba(255,255,255,0.5)', font: { size: 9, family: 'Share Tech Mono' }, boxWidth: 10 } } }
+        }
+      });
+    }
+
+    // Three.js background
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, .1, 1000);
+    const rend = new THREE.WebGLRenderer({ canvas: document.getElementById('bg3d'), alpha: true, antialias: true });
+    rend.setSize(innerWidth, innerHeight); rend.setPixelRatio(Math.min(devicePixelRatio, 2)); cam.position.z = 40;
+    const pts = new Float32Array(2000); for (let i = 0; i < 2000; i++)pts[i] = (Math.random() - .5) * 120;
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+    const mat = new THREE.PointsMaterial({ size: .12, color: 0x7b2fff, transparent: true, opacity: .4 });
+    const stars = new THREE.Points(geo, mat); scene.add(stars);
+    const gGeo = new THREE.PlaneGeometry(120, 120, 30, 30);
+    const gMat = new THREE.MeshBasicMaterial({ color: 0x7b2fff, wireframe: true, transparent: true, opacity: .03 });
+    const grid = new THREE.Mesh(gGeo, gMat); grid.rotation.x = -Math.PI / 2; grid.position.y = -30; scene.add(grid);
+    let ti = 0; (function anim() { requestAnimationFrame(anim); ti += .001; stars.rotation.y = ti * .2; grid.position.z = (ti * 1.5) % 4; rend.render(scene, cam) })();
+    window.addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); rend.setSize(innerWidth, innerHeight) });
+  </script>
+</body>
+
+</html>
