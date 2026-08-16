@@ -2,585 +2,187 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>NeuralSync — Analysis Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuralSync | Digital Behavior Dashboard</title>
   <link
-    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&family=Share+Tech+Mono&display=swap"
-    rel="stylesheet">
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <style>
-    * {
+    /* Initial width for meter bars */
+    .meter-bar-zero {
+      width: 0%;
+    }
+
+    .text-green {
+      color: var(--green);
+    }
+
+    .text-cyan {
+      color: var(--cyan);
+    }
+
+    .text-magenta {
+      color: var(--magenta);
+    }
+
+    .text-orange {
+      color: var(--orange);
+    }
+
+    .text-red {
+      color: var(--red);
+    }
+
+    .text-yellow {
+      color: var(--yellow);
+    }
+
+    .text-green {
+      color: var(--green);
+      text-shadow: var(--glow-g);
+    }
+
+    .text-orange {
+      color: var(--orange);
+      text-shadow: 0 0 10px rgba(255, 140, 0, .5);
+    }
+
+    .text-pink {
+      color: var(--pink);
+      text-shadow: 0 0 10px rgba(255, 0, 128, .5);
+    }
+
+    .disabled-slider {
+      opacity: .4;
+      cursor: default;
+    }
+
+    /* ─── RESET ─────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      box-sizing: border-box
     }
 
     :root {
-      --c1: #00fff0;
-      --c2: #ff00aa;
-      --c3: #7b2fff;
-      --c4: #00ff88;
-      --c5: #ffaa00;
-      --bg: #030712;
-      --glass: rgba(0, 255, 240, 0.04);
-      --border: rgba(0, 255, 240, 0.12)
+      --bg: #040d14;
+      --bg2: #060f18;
+      --card-bg: rgba(5, 18, 32, 0.85);
+      --cyan: #00f5ff;
+      --cyan2: #00c8ff;
+      --magenta: #bf00ff;
+      --green: #00ff88;
+      --orange: #ff8c00;
+      --pink: #ff0080;
+      --yellow: #ffe600;
+      --red: #ff003c;
+      --txt: #cceeff;
+      --txt2: rgba(180, 230, 255, 0.55);
+      --border: rgba(0, 245, 255, 0.18);
+      --border2: rgba(0, 245, 255, 0.35);
+      --glow-c: 0 0 14px rgba(0, 245, 255, 0.55);
+      --glow-m: 0 0 14px rgba(191, 0, 255, 0.55);
+      --glow-g: 0 0 14px rgba(0, 255, 136, 0.55);
     }
 
-    html,
     body {
-      min-height: 100%;
+      font-family: 'Share Tech Mono', monospace;
       background: var(--bg);
-      font-family: 'Rajdhani', sans-serif;
-      color: #fff;
-      overflow-x: hidden
+      color: var(--txt);
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    canvas#bg3d {
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 0;
-      pointer-events: none
-    }
-
-    .noise {
+    /* scanlines */
+    body::after {
+      content: '';
       position: fixed;
       inset: 0;
-      z-index: 1;
-      opacity: .02;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      pointer-events: none
-    }
-
-    .scan-line {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--c1), transparent);
-      animation: scan 8s linear infinite;
-      z-index: 2;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 245, 255, 0.012) 2px, rgba(0, 245, 255, 0.012) 4px);
       pointer-events: none;
-      opacity: .2
+      z-index: 900;
     }
 
-    @keyframes scan {
-      0% {
-        top: -1px
-      }
-
-      100% {
-        top: 100vh
-      }
+    /* ─── THREE.JS BG ────────────────────────────────── */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
     }
 
-    .page {
-      position: relative;
-      z-index: 3;
-      padding: 0 2rem 4rem
-    }
-
+    /* ─── NAV ────────────────────────────────────────── */
     nav {
+      position: relative;
+      z-index: 10;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 1.2rem 1rem;
+      justify-content: space-between;
+      padding: 14px 48px;
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(20px);
-      background: rgba(3, 7, 18, .7);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      margin: 0 -2rem 2rem
+      background: rgba(4, 13, 20, 0.6);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
     }
 
-    .logo {
-      font-family: 'Orbitron', monospace;
-      font-size: 1rem;
-      font-weight: 900;
-      background: linear-gradient(135deg, var(--c1), var(--c2));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: 3px
+    .nav-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .nav-logo span:first-child {
+      color: var(--cyan);
+    }
+
+    .nav-logo span:last-child {
+      color: var(--magenta);
     }
 
     .nav-links {
       display: flex;
-      gap: 1.5rem
+      align-items: center;
+      gap: 36px;
     }
 
     .nav-links a {
-      color: rgba(255, 255, 255, .5);
       text-decoration: none;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .75rem;
+      font-size: 13px;
       letter-spacing: 2px;
-      transition: .3s
+      color: var(--txt2);
+      transition: color .2s;
     }
 
     .nav-links a:hover,
     .nav-links a.active {
-      color: var(--c1)
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
     }
 
-    .page-header {
-      text-align: center;
-      margin-bottom: 3rem;
-      padding-top: 1rem
-    }
-
-    .page-header .badge {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .65rem;
-      color: var(--c4);
-      letter-spacing: 4px;
-      margin-bottom: 1rem;
-      display: block
-    }
-
-    .page-header h1 {
-      font-family: 'Orbitron', monospace;
-      font-size: clamp(1.5rem, 4vw, 2.5rem);
-      font-weight: 900;
-      background: linear-gradient(135deg, var(--c1), var(--c2));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent
-    }
-
-    .main-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      max-width: 1400px;
-      margin: 0 auto
-    }
-
-    @media(max-width:1100px) {
-      .main-grid {
-        grid-template-columns: 1fr
-      }
-    }
-
-    .panel {
-      background: var(--glass);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.8rem;
-      backdrop-filter: blur(20px);
-      position: relative;
-      overflow: hidden
-    }
-
-    .panel::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--c1), transparent);
-      opacity: .5
-    }
-
-    .panel-title {
-      font-family: 'Orbitron', monospace;
-      font-size: .8rem;
-      font-weight: 700;
-      color: var(--c1);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 1.5rem;
+    .nav-status {
       display: flex;
       align-items: center;
-      gap: .8rem
-    }
-
-    .panel-title::before {
-      content: '';
-      width: 3px;
-      height: 16px;
-      background: linear-gradient(180deg, var(--c1), var(--c3));
-      border-radius: 2px
-    }
-
-    .slider-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.2rem
-    }
-
-    @media(max-width:600px) {
-      .slider-grid {
-        grid-template-columns: 1fr
-      }
-    }
-
-    .slider-item {
-      position: relative
-    }
-
-    .slider-label {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: .5rem
-    }
-
-    .slider-name {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .7rem;
-      color: rgba(255, 255, 255, .6);
-      letter-spacing: 1px;
-      text-transform: uppercase
-    }
-
-    .slider-val {
-      font-family: 'Orbitron', monospace;
-      font-size: .8rem;
-      font-weight: 700;
-      color: var(--c1)
-    }
-
-    input[type=range] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 3px;
-      background: rgba(255, 255, 255, .08);
-      border-radius: 3px;
-      outline: none;
-      cursor: pointer
-    }
-
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--c1);
-      box-shadow: 0 0 8px var(--c1);
-      cursor: pointer;
-      transition: .2s
-    }
-
-    input[type=range]:hover::-webkit-slider-thumb {
-      transform: scale(1.3);
-      box-shadow: 0 0 15px var(--c1)
-    }
-
-    input[type=range].red::-webkit-slider-thumb {
-      background: var(--c2);
-      box-shadow: 0 0 8px var(--c2)
-    }
-
-    input[type=range].purple::-webkit-slider-thumb {
-      background: var(--c3);
-      box-shadow: 0 0 8px var(--c3)
-    }
-
-    input[type=range].green::-webkit-slider-thumb {
-      background: var(--c4);
-      box-shadow: 0 0 8px var(--c4)
-    }
-
-    input[type=range].amber::-webkit-slider-thumb {
-      background: var(--c5);
-      box-shadow: 0 0 8px var(--c5)
-    }
-
-    .results-panel {
-      grid-column: 1/-1
-    }
-
-    .metric-cards {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
-      margin-bottom: 2rem
-    }
-
-    @media(max-width:900px) {
-      .metric-cards {
-        grid-template-columns: repeat(2, 1fr)
-      }
-    }
-
-    @media(max-width:500px) {
-      .metric-cards {
-        grid-template-columns: 1fr
-      }
-    }
-
-    .metric-card {
-      background: rgba(0, 0, 0, .3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.2rem;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-      transition: .3s
-    }
-
-    .metric-card::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 8px;
-      opacity: 0;
-      transition: .3s
-    }
-
-    .metric-card:hover {
-      transform: translateY(-3px)
-    }
-
-    .metric-card.glow-cyan::after {
-      box-shadow: inset 0 0 30px rgba(0, 255, 240, .1);
-      opacity: 1
-    }
-
-    .metric-card.glow-pink::after {
-      box-shadow: inset 0 0 30px rgba(255, 0, 170, .1);
-      opacity: 1
-    }
-
-    .metric-card.glow-green::after {
-      box-shadow: inset 0 0 30px rgba(0, 255, 136, .1);
-      opacity: 1
-    }
-
-    .metric-card.glow-amber::after {
-      box-shadow: inset 0 0 30px rgba(255, 170, 0, .1);
-      opacity: 1
-    }
-
-    .metric-label {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .6rem;
-      color: rgba(255, 255, 255, .4);
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      margin-bottom: .5rem
-    }
-
-    .metric-value {
-      font-family: 'Orbitron', monospace;
-      font-size: 2rem;
-      font-weight: 900;
-      line-height: 1
-    }
-
-    .metric-value.cyan {
-      color: var(--c1);
-      text-shadow: 0 0 20px var(--c1)
-    }
-
-    .metric-value.pink {
-      color: var(--c2);
-      text-shadow: 0 0 20px var(--c2)
-    }
-
-    .metric-value.green {
-      color: var(--c4);
-      text-shadow: 0 0 20px var(--c4)
-    }
-
-    .metric-value.amber {
-      color: var(--c5);
-      text-shadow: 0 0 20px var(--c5)
-    }
-
-    .metric-sub {
-      font-size: .75rem;
-      color: rgba(255, 255, 255, .3);
-      margin-top: .3rem;
-      font-family: 'Rajdhani', sans-serif
-    }
-
-    .chart-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem
-    }
-
-    @media(max-width:800px) {
-      .chart-row {
-        grid-template-columns: 1fr
-      }
-    }
-
-    .chart-box {
-      background: rgba(0, 0, 0, .3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.2rem
-    }
-
-    .chart-box h4 {
-      font-family: 'Orbitron', monospace;
-      font-size: .7rem;
-      color: rgba(255, 255, 255, .5);
+      gap: 8px;
+      font-size: 12px;
+      color: var(--green);
       letter-spacing: 2px;
-      margin-bottom: 1rem
     }
 
-    canvas.chart {
-      max-height: 200px
-    }
-
-    .risk-bar-wrap {
-      margin-bottom: 1.2rem
-    }
-
-    .risk-bar-label {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: .5rem;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .7rem;
-      color: rgba(255, 255, 255, .5)
-    }
-
-    .risk-bar {
+    .status-dot {
+      width: 8px;
       height: 8px;
-      background: rgba(255, 255, 255, .05);
-      border-radius: 4px;
-      overflow: hidden
-    }
-
-    .risk-fill {
-      height: 100%;
-      border-radius: 4px;
-      transition: width 1s cubic-bezier(.4, 0, .2, 1)
-    }
-
-    .insights-list {
-      display: flex;
-      flex-direction: column;
-      gap: .7rem
-    }
-
-    .insight-item {
-      background: rgba(0, 0, 0, .3);
-      border-left: 2px solid var(--c2);
-      padding: .8rem 1rem;
-      border-radius: 0 4px 4px 0;
-      font-size: .9rem;
-      color: rgba(255, 255, 255, .7);
-      animation: fadeIn .5s ease
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateX(-10px)
-      }
-
-      to {
-        opacity: 1;
-        transform: none
-      }
-    }
-
-    .behavior-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: .5rem;
-      padding: .5rem 1.2rem;
-      border-radius: 50px;
-      font-family: 'Orbitron', monospace;
-      font-size: .75rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      border: 1px solid var(--c3);
-      background: rgba(123, 47, 255, .15);
-      color: var(--c3);
-      margin-bottom: 1rem
-    }
-
-    .run-btn {
-      width: 100%;
-      padding: 1.1rem;
-      border: none;
-      border-radius: 6px;
-      background: linear-gradient(135deg, var(--c1), var(--c3));
-      color: #000;
-      font-family: 'Orbitron', monospace;
-      font-size: .9rem;
-      font-weight: 900;
-      letter-spacing: 3px;
-      cursor: pointer;
-      text-transform: uppercase;
-      transition: .3s;
-      position: relative;
-      overflow: hidden;
-      clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
-      margin-top: 1.5rem
-    }
-
-    .run-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 40px rgba(0, 255, 240, .4)
-    }
-
-    .run-btn:active {
-      transform: scale(.98)
-    }
-
-    .run-btn:disabled {
-      opacity: .5;
-      cursor: not-allowed;
-      transform: none
-    }
-
-    .loader {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem;
-      gap: 1rem
-    }
-
-    .loader.active {
-      display: flex
-    }
-
-    .loader-ring {
-      width: 60px;
-      height: 60px;
-      border: 2px solid rgba(0, 255, 240, .1);
-      border-top-color: var(--c1);
       border-radius: 50%;
-      animation: spin 1s linear infinite
-    }
-
-    .loader-ring2 {
-      width: 40px;
-      height: 40px;
-      border: 1px solid rgba(255, 0, 170, .1);
-      border-bottom-color: var(--c2);
-      border-radius: 50%;
-      animation: spin 1.5s linear infinite reverse;
-      position: absolute
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg)
-      }
-    }
-
-    .loader-text {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .7rem;
-      color: var(--c1);
-      letter-spacing: 3px;
-      animation: blink 1s infinite
+      background: var(--green);
+      box-shadow: var(--glow-g);
+      animation: blink 1.4s ease-in-out infinite;
     }
 
     @keyframes blink {
@@ -595,649 +197,1472 @@
       }
     }
 
-    /* ERROR PANEL */
-    .error-panel {
-      grid-column: 1/-1;
-      background: rgba(255, 0, 85, .06);
-      border: 1px solid rgba(255, 0, 85, .35);
-      border-radius: 8px;
-      padding: 1.8rem;
-      display: none
-    }
-
-    .error-panel.visible {
-      display: block
-    }
-
-    .error-title {
-      font-family: 'Orbitron', monospace;
-      font-size: .85rem;
-      font-weight: 700;
-      color: #ff4455;
-      letter-spacing: 2px;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: .6rem
-    }
-
-    .error-body {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .75rem;
-      color: rgba(255, 255, 255, .6);
-      line-height: 1.8;
-      white-space: pre-wrap;
-      word-break: break-all;
-      background: rgba(0, 0, 0, .4);
-      border-radius: 4px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      max-height: 200px;
-      overflow-y: auto
-    }
-
-    .error-steps {
-      font-size: .9rem;
-      color: rgba(255, 255, 255, .5);
-      line-height: 1.9
-    }
-
-    .error-steps strong {
-      color: var(--c5);
-      font-family: 'Share Tech Mono', monospace
-    }
-
-    .dismiss-btn {
-      padding: .5rem 1.2rem;
-      border: 1px solid rgba(255, 0, 85, .4);
-      border-radius: 4px;
-      background: transparent;
-      color: #ff4455;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .7rem;
-      letter-spacing: 2px;
-      cursor: pointer;
-      transition: .3s
-    }
-
-    .dismiss-btn:hover {
-      background: rgba(255, 0, 85, .1)
-    }
-
-    .corner-tl,
-    .corner-br {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      pointer-events: none
-    }
-
-    .corner-tl {
-      top: 8px;
-      left: 8px;
-      border-top: 1px solid var(--c1);
-      border-left: 1px solid var(--c1);
-      opacity: .5
-    }
-
-    .corner-br {
-      bottom: 8px;
-      right: 8px;
-      border-bottom: 1px solid var(--c1);
-      border-right: 1px solid var(--c1);
-      opacity: .5
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--c4);
-      box-shadow: 0 0 8px var(--c4);
-      animation: pulse-dot 2s infinite
-    }
-
-    @keyframes pulse-dot {
-
-      0%,
-      100% {
-        opacity: 1;
-        transform: scale(1)
-      }
-
-      50% {
-        opacity: .5;
-        transform: scale(.7)
-      }
-    }
-
-    .view-report-btn {
-      display: block;
+    /* ─── HERO ───────────────────────────────────────── */
+    .hero {
+      position: relative;
+      z-index: 5;
       text-align: center;
-      padding: .8rem;
-      border: 1px solid var(--c4);
-      border-radius: 6px;
-      color: var(--c4);
-      font-family: 'Orbitron', monospace;
-      font-size: .8rem;
-      letter-spacing: 2px;
-      text-decoration: none;
-      margin-top: 1rem;
-      transition: .3s
+      padding: 42px 20px 32px;
     }
 
-    .view-report-btn:hover {
-      background: rgba(0, 255, 136, .1);
-      box-shadow: 0 0 20px rgba(0, 255, 136, .2)
+    .hero-sub {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--txt2);
+      margin-bottom: 14px;
     }
 
-    .server-status {
+    .hero-sub span {
+      color: var(--cyan);
+    }
+
+
+    /* ─── MAIN PANELS ────────────────────────────────── */
+    .panels-wrap {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 0 40px 30px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* Glass card — replicating original corner-bracket look */
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 28px 28px 24px;
+      position: relative;
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+    }
+
+    /* corner brackets */
+    .panel::before,
+    .panel::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+    }
+
+    .panel::before {
+      top: 6px;
+      left: 6px;
+      border-top: 2px solid var(--cyan);
+      border-left: 2px solid var(--cyan);
+    }
+
+    .panel::after {
+      bottom: 6px;
+      right: 6px;
+      border-bottom: 2px solid var(--cyan);
+      border-right: 2px solid var(--cyan);
+    }
+
+    /* ─── SECTION DIVIDER ────────────────────────────── */
+    .section-divider {
       display: flex;
       align-items: center;
-      gap: .5rem;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: .65rem;
+      gap: 10px;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--txt2);
+      padding: 6px 0 12px;
+      border-top: 1px solid rgba(0, 245, 255, 0.1);
+      margin-top: 18px;
+    }
+
+    .section-divider:first-child {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 0;
+    }
+
+    .section-divider .icon {
+      font-size: 13px;
+    }
+
+    .section-divider.gaming {
+      color: var(--orange);
+    }
+
+    .section-divider.social {
+      color: var(--magenta);
+    }
+
+    .section-divider.ai-tools {
+      color: var(--cyan);
+    }
+
+    .section-divider.edu {
+      color: var(--green);
+    }
+
+    .section-divider.ent {
+      color: #ff3d6e;
+    }
+
+    .section-divider.shop {
+      color: var(--yellow);
+    }
+
+    .section-divider.browser {
+      color: #7eb8ff;
+    }
+
+    /* ─── SLIDER ROWS ────────────────────────────────── */
+    .slider-row {
+      display: grid;
+      grid-template-columns: 154px 1fr 56px;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .slider-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .slider-label {
+      font-size: 11px;
       letter-spacing: 2px;
-      padding: .4rem .9rem;
-      border-radius: 50px;
-      border: 1px solid rgba(255, 255, 255, .1)
+      color: var(--txt2);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .server-status .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%
+    .slider-label .app-icon {
+      font-size: 14px;
     }
 
-    .server-status.online .dot {
-      background: var(--c4);
-      box-shadow: 0 0 6px var(--c4)
+    .slider-val {
+      font-size: 13px;
+      font-weight: 600;
+      text-align: right;
+      min-width: 56px;
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
     }
 
-    .server-status.offline .dot {
-      background: #ff4455;
-      box-shadow: 0 0 6px #ff4455
+    .slider-val.gaming {
+      color: var(--orange);
+      text-shadow: 0 0 10px rgba(255, 140, 0, .6);
     }
 
-    .server-status.checking .dot {
-      background: var(--c5);
-      box-shadow: 0 0 6px var(--c5);
-      animation: blink 1s infinite
+    .slider-val.social {
+      color: var(--magenta);
+      text-shadow: var(--glow-m);
+    }
+
+    .slider-val.edu {
+      color: var(--green);
+      text-shadow: var(--glow-g);
+    }
+
+    .slider-val.ent {
+      color: #ff3d6e;
+    }
+
+    .slider-val.shop {
+      color: var(--yellow);
+    }
+
+    .slider-val.browser {
+      color: #7eb8ff;
+    }
+
+    /* ─── RANGE INPUTS ───────────────────────────────── */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 3px;
+      border-radius: 3px;
+      background: rgba(0, 245, 255, 0.1);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Cyan (default / AI) */
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.35);
+    }
+
+    /* Gaming — orange */
+    input[type="range"].gaming::-webkit-slider-thumb {
+      background: var(--orange);
+      box-shadow: 0 0 8px var(--orange);
+    }
+
+    /* Social — magenta */
+    input[type="range"].social::-webkit-slider-thumb {
+      background: var(--magenta);
+      box-shadow: 0 0 8px var(--magenta);
+    }
+
+    /* Edu — green */
+    input[type="range"].edu::-webkit-slider-thumb {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    /* Ent — pink */
+    input[type="range"].ent::-webkit-slider-thumb {
+      background: #ff3d6e;
+      box-shadow: 0 0 8px #ff3d6e;
+    }
+
+    /* Shop — yellow */
+    input[type="range"].shop::-webkit-slider-thumb {
+      background: var(--yellow);
+      box-shadow: 0 0 8px var(--yellow);
+    }
+
+    /* Browser — sky */
+    input[type="range"].browser::-webkit-slider-thumb {
+      background: #7eb8ff;
+      box-shadow: 0 0 8px #7eb8ff;
+    }
+
+    /* Pink */
+    input[type="range"].pink::-webkit-slider-thumb {
+      background: var(--pink);
+      box-shadow: 0 0 8px var(--pink);
+    }
+
+    /* Green */
+    input[type="range"].green::-webkit-slider-thumb {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    /* ─── RIGHT PANEL — META ROWS ────────────────────── */
+    .meta-row {
+      display: grid;
+      grid-template-columns: 154px 1fr 56px;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .meta-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--txt2);
+    }
+
+    /* ─── EXECUTE BUTTON ─────────────────────────────── */
+    .exec-btn {
+      width: 100%;
+      margin-top: 22px;
+      padding: 16px;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--magenta) 100%);
+      border: none;
+      border-radius: 4px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 14px;
+      letter-spacing: 3px;
+      font-weight: 700;
+      color: #000;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: opacity .2s, box-shadow .2s;
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.3), 0 0 40px rgba(191, 0, 255, 0.2);
+      text-transform: uppercase;
+    }
+
+    .exec-btn:hover {
+      opacity: .88;
+      box-shadow: 0 0 32px rgba(0, 245, 255, 0.5), 0 0 60px rgba(191, 0, 255, 0.35);
+    }
+
+    .exec-btn .bolt {
+      font-size: 16px;
+      color: #ff8c00;
+    }
+
+    /* ─── LIVE SUMMARY STRIP ─────────────────────────── */
+    .summary-strip {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 0;
+      margin: 0 40px 24px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      background: rgba(4, 13, 20, 0.7);
+    }
+
+    .sum-cell {
+      padding: 12px 8px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .sum-cell:last-child {
+      border-right: none;
+    }
+
+    .sum-val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      display: block;
+    }
+
+    .sum-lbl {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: var(--txt2);
+      text-transform: uppercase;
+      margin-top: 3px;
+      display: block;
+    }
+
+    .sc-gaming .sum-val {
+      color: var(--orange);
+      text-shadow: 0 0 10px rgba(255, 140, 0, .4);
+    }
+
+    .sc-social .sum-val {
+      color: var(--magenta);
+      text-shadow: var(--glow-m);
+    }
+
+    .sc-ai .sum-val {
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
+    }
+
+    .sc-edu .sum-val {
+      color: var(--green);
+      text-shadow: var(--glow-g);
+    }
+
+    .sc-ent .sum-val {
+      color: #ff3d6e;
+    }
+
+    .sc-shop .sum-val {
+      color: var(--yellow);
+    }
+
+    .sc-browser .sum-val {
+      color: #7eb8ff;
+    }
+
+    .sc-screen .sum-val {
+      color: #fff;
+    }
+
+    .sc-offline .sum-val {
+      color: var(--green);
+      text-shadow: var(--glow-g);
+    }
+
+    /* ─── CHARTS SECTION ─────────────────────────────── */
+    .charts-wrap {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 0 40px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .chart-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 22px;
+      position: relative;
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+    }
+
+    .chart-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    }
+
+    .chart-panel.purple::before {
+      background: linear-gradient(90deg, transparent, var(--magenta), transparent);
+    }
+
+    .chart-title {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--txt2);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 240px;
+    }
+
+    /* ─── METRICS + NEURO METERS ─────────────────────── */
+    .metrics-wrap {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 0 40px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .metric-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 22px;
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      position: relative;
+    }
+
+    .metric-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    }
+
+    .metric-panel.green-top::before {
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+    }
+
+    .panel-title {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--txt2);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    /* Bar metric */
+    .bar-metric {
+      margin-bottom: 12px;
+    }
+
+    .bar-metric:last-child {
+      margin-bottom: 0;
+    }
+
+    .bar-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .bar-name {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: var(--txt2);
+    }
+
+    .bar-score {
+      font-size: 11px;
+    }
+
+    .bar-bg {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .55s cubic-bezier(.4, 0, .2, 1);
+      width: 0%;
+    }
+
+    .bf-cyan {
+      background: linear-gradient(90deg, var(--cyan), #00a8ff);
+      box-shadow: 0 0 6px rgba(0, 245, 255, .4);
+    }
+
+    .bf-purple {
+      background: linear-gradient(90deg, var(--magenta), #7b00ff);
+      box-shadow: 0 0 6px rgba(191, 0, 255, .4);
+    }
+
+    .bf-green {
+      background: linear-gradient(90deg, var(--green), #00d4a0);
+      box-shadow: 0 0 6px rgba(0, 255, 136, .4);
+    }
+
+    .bf-orange {
+      background: linear-gradient(90deg, var(--orange), #ffaa00);
+      box-shadow: 0 0 6px rgba(255, 140, 0, .4);
+    }
+
+    .bf-red {
+      background: linear-gradient(90deg, var(--red), #ff4400);
+      box-shadow: 0 0 6px rgba(255, 0, 60, .4);
+    }
+
+    .bf-yellow {
+      background: linear-gradient(90deg, var(--yellow), #ffa500);
+      box-shadow: 0 0 6px rgba(255, 230, 0, .4);
+    }
+
+    /* Neuro meters grid */
+    .meters-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .meter-cell {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .meter-cell-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--txt2);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .meter-big {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .meter-state {
+      font-size: 10px;
+      letter-spacing: 2px;
+      margin: 4px 0 8px;
+      text-transform: uppercase;
+    }
+
+    .meter-bar-bg {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .meter-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .55s cubic-bezier(.4, 0, .2, 1), background .55s;
+    }
+
+    /* ─── AI RECO PANEL ──────────────────────────────── */
+    .reco-wrap {
+      position: relative;
+      z-index: 5;
+      padding: 0 40px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .reco-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 22px;
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      position: relative;
+    }
+
+    .reco-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+    }
+
+    .reco-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 10px;
+    }
+
+    .reco-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-left: 3px solid var(--cyan);
+      border-radius: 0 4px 4px 0;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--txt);
+    }
+
+    .reco-item.warn {
+      border-color: var(--orange);
+    }
+
+    .reco-item.danger {
+      border-color: var(--red);
+    }
+
+    .reco-item.good {
+      border-color: var(--green);
+    }
+
+    /* ─── RESULT PANEL ───────────────────────────────── */
+    .result-wrap {
+      position: relative;
+      z-index: 5;
+      padding: 0 40px 48px;
+      max-width: 1600px;
+      margin: 0 auto;
+      display: none;
+    }
+
+    .result-wrap.active {
+      display: block;
+      animation: fadeUp .4s ease;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .result-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      position: relative;
+    }
+
+    .result-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--magenta), var(--cyan), transparent);
+    }
+
+    .result-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--magenta);
+      text-shadow: var(--glow-m);
+      margin-bottom: 16px;
+    }
+
+    /* ─── SCROLLBAR ──────────────────────────────────── */
+    ::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--cyan);
+      border-radius: 3px;
     }
   </style>
 </head>
 
 <body>
-  <div class="noise"></div>
-  <div class="scan-line"></div>
-  <canvas id="bg3d"></canvas>
-  <div class="page">
-    <nav>
-      <div class="logo">NEURALSYNC</div>
-      <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/dashboard" class="active">Analyze</a>
-        <a href="/result">Results</a>
-        <div class="server-status checking" id="server-status">
-          <div class="dot"></div><span id="status-text">CHECKING</span>
-        </div>
-      </div>
-    </nav>
-    <div class="page-header">
-      <span class="badge">// BEHAVIORAL ANALYSIS ENGINE — ONLINE</span>
-      <h1>Digital Behavior Dashboard</h1>
+
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo"><span>NEURAL</span><span>SYNC</span></div>
+    <div class="nav-links">
+      <a href="#">Home</a>
+      <a href="#" class="active">Analyze</a>
+      <a href="#">Results</a>
     </div>
+    <div class="nav-status">
+      <div class="status-dot"></div>ONLINE
+    </div>
+  </nav>
 
-    <div class="main-grid">
-      <!-- INPUT PANEL 1 -->
-      <div class="panel">
-        <div class="corner-tl"></div>
-        <div class="corner-br"></div>
-        <div class="panel-title">Screen &amp; App Usage Vectors</div>
-        <div class="slider-grid">
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Screen Time</span><span class="slider-val"
-                id="v_screen">6 hrs</span></div>
-            <input type="range" id="screen_time" min="0" max="16" step=".5" value="6"
-              oninput="upd(this,'v_screen',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Gaming Hours</span><span class="slider-val"
-                id="v_gaming">2 hrs</span></div>
-            <input type="range" class="red" id="gaming_hours" min="0" max="12" step=".5" value="2"
-              oninput="upd(this,'v_gaming',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Social Media</span><span class="slider-val"
-                id="v_social">2 hrs</span></div>
-            <input type="range" class="purple" id="social_media" min="0" max="10" step=".5" value="2"
-              oninput="upd(this,'v_social',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">AI Tools Usage</span><span class="slider-val"
-                id="v_ai">1 hrs</span></div>
-            <input type="range" class="green" id="ai_tools" min="0" max="8" step=".5" value="1"
-              oninput="upd(this,'v_ai',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Reels Usage</span><span class="slider-val"
-                id="v_reels">1 hrs</span></div>
-            <input type="range" class="red" id="reels_usage" min="0" max="6" step=".5" value="1"
-              oninput="upd(this,'v_reels',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">YouTube Usage</span><span class="slider-val" id="v_yt">1
-                hrs</span></div>
-            <input type="range" id="youtube_usage" min="0" max="8" step=".5" value="1"
-              oninput="upd(this,'v_yt',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Chat Usage</span><span class="slider-val" id="v_chat">1
-                hrs</span></div>
-            <input type="range" class="purple" id="chat_usage" min="0" max="6" step=".5" value="1"
-              oninput="upd(this,'v_chat',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Night Usage</span><span class="slider-val"
-                id="v_night">0 hrs</span></div>
-            <input type="range" class="amber" id="night_usage" min="0" max="6" step=".5" value="0"
-              oninput="upd(this,'v_night',' hrs')">
-          </div>
-        </div>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-sub">// <span>BEHAVIORAL ANALYSIS ENGINE</span> — ONLINE</div>
+    <h1>Digital Behavior Dashboard</h1>
+  </div>
+
+  <!-- ── MAIN INPUT PANELS ── -->
+  <div class="panels-wrap">
+
+    <!-- LEFT PANEL: APP SLIDERS -->
+    <div class="panel">
+
+      <!-- GAMING -->
+      <div class="section-divider gaming"><span class="icon">🎮</span>GAMING</div>
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">⚽</span>GAMES</div>
+        <input type="range" class="gaming" id="s_fcmobile" aria-label="Games Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val gaming" id="v_fcmobile">0 hrs</div>
       </div>
 
-      <!-- INPUT PANEL 2 -->
-      <div class="panel">
-        <div class="corner-tl"></div>
-        <div class="corner-br"></div>
-        <div class="panel-title">Behavioral &amp; Cognitive Signals</div>
-        <div class="slider-grid">
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Study/Work Hrs</span><span class="slider-val"
-                id="v_study">6 hrs</span></div>
-            <input type="range" class="green" id="study_hours" min="0" max="14" step=".5" value="6"
-              oninput="upd(this,'v_study',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Sleep Hours</span><span class="slider-val"
-                id="v_sleep">7 hrs</span></div>
-            <input type="range" class="green" id="sleep_hours" min="2" max="12" step=".5" value="7"
-              oninput="upd(this,'v_sleep',' hrs')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Phone Unlocks</span><span class="slider-val"
-                id="v_unlocks">40</span></div>
-            <input type="range" class="amber" id="phone_unlocks" min="0" max="200" step="1" value="40"
-              oninput="upd(this,'v_unlocks','')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Notifications</span><span class="slider-val"
-                id="v_notifs">80</span></div>
-            <input type="range" class="red" id="notifications" min="0" max="500" step="5" value="80"
-              oninput="upd(this,'v_notifs','')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">App Switches</span><span class="slider-val"
-                id="v_switches">30</span></div>
-            <input type="range" class="purple" id="app_switches" min="0" max="200" step="1" value="30"
-              oninput="upd(this,'v_switches','')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Focus Score</span><span class="slider-val"
-                id="v_focus">60</span></div>
-            <input type="range" class="green" id="focus_score" min="0" max="100" step="1" value="60"
-              oninput="upd(this,'v_focus','')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Productivity</span><span class="slider-val"
-                id="v_prod">60</span></div>
-            <input type="range" class="green" id="productivity_score" min="0" max="100" step="1" value="60"
-              oninput="upd(this,'v_prod','')">
-          </div>
-          <div class="slider-item">
-            <div class="slider-label"><span class="slider-name">Stress Level</span><span class="slider-val"
-                id="v_stress">5/10</span></div>
-            <input type="range" class="red" id="stress_level" min="0" max="10" step=".5" value="5"
-              oninput="upd(this,'v_stress','/10')">
-          </div>
-        </div>
-        <button class="run-btn" id="run-btn" onclick="runAnalysis()">&#9889; EXECUTE NEURAL ANALYSIS</button>
+      <!-- SOCIAL MEDIA -->
+      <div class="section-divider social"><span class="icon">💬</span>SOCIAL MEDIA</div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">📸</span>INSTAGRAM</div>
+        <input type="range" class="social" id="s_instagram" aria-label="Instagram Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val social" id="v_instagram">0 hrs</div>
       </div>
 
-      <!-- ERROR PANEL -->
-      <div class="error-panel" id="error-panel">
-        <div class="error-title">&#9888; ANALYSIS FAILED — DIAGNOSTIC REPORT</div>
-        <div class="error-body" id="error-body"></div>
-        <div class="error-steps" id="error-steps"></div>
-        <br>
-        <button class="dismiss-btn" onclick="dismissError()">DISMISS</button>
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">💚</span>WHATSAPP</div>
+        <input type="range" class="social" id="s_whatsapp" aria-label="WhatsApp Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val social" id="v_whatsapp">0 hrs</div>
       </div>
 
-      <!-- RESULTS PANEL -->
-      <div class="panel results-panel" id="results-panel" style="display:none">
-        <div class="corner-tl"></div>
-        <div class="corner-br"></div>
-        <div class="panel-title"><span class="status-dot"></span>&nbsp;Analysis Results — Live Output</div>
-        <div class="metric-cards">
-          <div class="metric-card glow-cyan">
-            <div class="metric-label">Wellness Score</div>
-            <div class="metric-value cyan" id="r_wellness">--</div>
-            <div class="metric-sub">/ 100</div>
-          </div>
-          <div class="metric-card glow-pink">
-            <div class="metric-label">Addiction Prob</div>
-            <div class="metric-value pink" id="r_addiction">--</div>
-            <div class="metric-sub">%</div>
-          </div>
-          <div class="metric-card glow-green">
-            <div class="metric-label">Productivity</div>
-            <div class="metric-value green" id="r_productivity">--</div>
-            <div class="metric-sub">Index</div>
-          </div>
-          <div class="metric-card glow-amber">
-            <div class="metric-label">Risk Score</div>
-            <div class="metric-value amber" id="r_risk">--</div>
-            <div class="metric-sub">/ 100</div>
-          </div>
-        </div>
-        <div class="chart-row">
-          <div class="chart-box">
-            <h4>// BEHAVIORAL VECTORS</h4><canvas class="chart" id="radarChart"></canvas>
-          </div>
-          <div class="chart-box">
-            <h4>// USAGE DISTRIBUTION</h4><canvas class="chart" id="doughnutChart"></canvas>
-          </div>
-        </div>
-        <div id="risk-bars" style="margin-bottom:1.5rem"></div>
-        <div style="margin-bottom:1rem">
-          <div id="behavior-badge-wrap"></div>
-          <div class="insights-list" id="insights-list"></div>
-        </div>
-        <a href="/result" class="view-report-btn">VIEW FULL REPORT &#8594;</a>
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">👻</span>SNAPCHAT</div>
+        <input type="range" class="social" id="s_snapchat" aria-label="Snapchat Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val social" id="v_snapchat">0 hrs</div>
       </div>
 
-      <!-- LOADER -->
-      <div class="panel results-panel" id="loader-panel" style="display:none">
-        <div class="loader active">
-          <div style="position:relative;display:flex;align-items:center;justify-content:center;width:60px;height:60px">
-            <div class="loader-ring"></div>
-            <div class="loader-ring2"></div>
-          </div>
-          <div class="loader-text" id="loader-text">PROCESSING NEURAL VECTORS...</div>
-        </div>
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">💼</span>LINKEDIN</div>
+        <input type="range" class="social" id="s_linkedin" aria-label="LinkedIn Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val social" id="v_linkedin">0 hrs</div>
       </div>
+
+      <!-- AI TOOLS -->
+      <div class="section-divider ai-tools"><span class="icon">🤖</span>AI TOOLS</div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🧠</span>CHATGPT</div>
+        <input type="range" id="s_chatgpt" aria-label="ChatGPT Usage" min="0" max="12" step="0.5" value="0">
+        <div class="slider-val" id="v_chatgpt">0 hrs</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">✨</span>CLAUDE</div>
+        <input type="range" id="s_claude" aria-label="Claude Usage" min="0" max="12" step="0.5" value="0">
+        <div class="slider-val" id="v_claude">0 hrs</div>
+      </div>
+
+      <!-- EDUCATION -->
+      <div class="section-divider edu"><span class="icon">📚</span>EDUCATION</div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🏫</span>G. CLASSROOM</div>
+        <input type="range" class="edu" id="s_classroom" aria-label="Google Classroom Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val edu" id="v_classroom">0 hrs</div>
+      </div>
+
+      <!-- ENTERTAINMENT -->
+      <div class="section-divider ent"><span class="icon">▶️</span>ENTERTAINMENT</div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">📺</span>YOUTUBE</div>
+        <input type="range" class="ent" id="s_youtube" aria-label="YouTube Usage" min="0" max="12" step="0.5" value="0">
+        <div class="slider-val ent" id="v_youtube">0 hrs</div>
+      </div>
+
+      <!-- SHOPPING / FOOD -->
+      <div class="section-divider shop"><span class="icon">🛒</span>SHOPPING / FOOD</div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🛍️</span>FLIPKART</div>
+        <input type="range" class="shop" id="s_flipkart" aria-label="Flipkart Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val shop" id="v_flipkart">0 hrs</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🍽️</span>ZOMATO</div>
+        <input type="range" class="shop" id="s_zomato" aria-label="Zomato Usage" min="0" max="12" step="0.5" value="0">
+        <div class="slider-val shop" id="v_zomato">0 hrs</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🧡</span>SWIGGY</div>
+        <input type="range" class="shop" id="s_swiggy" aria-label="Swiggy Usage" min="0" max="12" step="0.5" value="0">
+        <div class="slider-val shop" id="v_swiggy">0 hrs</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">⚡</span>BLINKIT</div>
+        <input type="range" class="shop" id="s_blinkit" aria-label="Blinkit Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val shop" id="v_blinkit">0 hrs</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🟣</span>ZEPTO</div>
+        <input type="range" class="shop" id="s_zepto" aria-label="Zepto Usage" min="0" max="12" step="0.5" value="0">
+        <div class="slider-val shop" id="v_zepto">0 hrs</div>
+      </div>
+
+      <!-- BROWSER -->
+      <div class="section-divider browser"><span class="icon">🌐</span>BROWSER</div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span class="app-icon">🦁</span>BRAVE</div>
+        <input type="range" class="browser" id="s_brave" aria-label="Brave Browser Usage" min="0" max="12" step="0.5"
+          value="0">
+        <div class="slider-val browser" id="v_brave">0 hrs</div>
+      </div>
+
+    </div><!-- /left panel -->
+
+    <!-- RIGHT PANEL -->
+    <div class="panel">
+
+      <div class="meta-row">
+        <div class="meta-label">SCREEN TIME</div>
+        <input type="range" id="disp_screen" min="0" max="24" step="0.5" value="0" disabled class="disabled-slider">
+        <div class="slider-val" id="v_screen">0 hrs</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">OFFLINE TIME</div>
+        <input type="range" id="disp_offline" aria-label="Offline Time" min="0" max="24" step="0.5" value="3" disabled
+          class="disabled-slider">
+        <div class="slider-val text-green" id="v_offline">3 hrs</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">SLEEP HOURS</div>
+        <input type="range" class="green" id="s_sleep" aria-label="Sleep Hours" min="0" max="12" step="0.5" value="7">
+        <div class="slider-val text-green" id="v_sleep">7 hrs</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">PHONE UNLOCKS</div>
+        <input type="range" class="pink" id="s_unlocks" aria-label="Phone Unlocks" min="0" max="300" step="5"
+          value="40">
+        <div class="slider-val text-orange" id="v_unlocks">40</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">NOTIFICATIONS</div>
+        <input type="range" class="pink" id="s_notifs" aria-label="Notifications" min="0" max="500" step="5" value="80">
+        <div class="slider-val text-pink" id="v_notifs">80</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">APP SWITCHES</div>
+        <input type="range" id="s_switches" aria-label="App Switches" min="0" max="200" step="5" value="30">
+        <div class="slider-val" id="v_switches">30</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">PRODUCTIVITY</div>
+        <input type="range" id="disp_prod" aria-label="Productivity Score" min="0" max="100" step="1" value="60"
+          disabled class="disabled-slider">
+        <div class="slider-val text-green" id="v_prod">--</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">FOCUS SCORE</div>
+        <input type="range" id="disp_focus" aria-label="Focus Score" min="0" max="100" step="1" value="60" disabled
+          class="disabled-slider">
+        <div class="slider-val text-green" id="v_focus">--</div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-label">STRESS LEVEL</div>
+        <input type="range" id="disp_stress" aria-label="Stress Level" min="0" max="10" step="0.1" value="5" disabled
+          class="disabled-slider">
+        <div class="slider-val text-pink" id="v_stress">--</div>
+      </div>
+
+      <!-- EXECUTE BUTTON -->
+      <button class="exec-btn" id="execBtn">
+        <span class="bolt">⚡</span>EXECUTE NEURAL ANALYSIS
+      </button>
+
+    </div><!-- /right panel -->
+
+  </div><!-- /panels-wrap -->
+
+  <!-- LIVE SUMMARY STRIP -->
+  <div class="summary-strip">
+    <div class="sum-cell sc-gaming">
+      <span class="sum-val" id="sum_gaming">0h</span>
+      <span class="sum-lbl">🎮 Gaming</span>
+    </div>
+    <div class="sum-cell sc-social">
+      <span class="sum-val" id="sum_social">0h</span>
+      <span class="sum-lbl">💬 Social</span>
+    </div>
+    <div class="sum-cell sc-ai">
+      <span class="sum-val" id="sum_ai">0h</span>
+      <span class="sum-lbl">🤖 AI Tools</span>
+    </div>
+    <div class="sum-cell sc-edu">
+      <span class="sum-val" id="sum_edu">0h</span>
+      <span class="sum-lbl">📚 Edu</span>
+    </div>
+    <div class="sum-cell sc-ent">
+      <span class="sum-val" id="sum_ent">0h</span>
+      <span class="sum-lbl">▶️ Entertain</span>
+    </div>
+    <div class="sum-cell sc-shop">
+      <span class="sum-val" id="sum_shop">0h</span>
+      <span class="sum-lbl">🛒 Shopping</span>
+    </div>
+    <div class="sum-cell sc-browser">
+      <span class="sum-val" id="sum_browser">0h</span>
+      <span class="sum-lbl">🌐 Browser</span>
+    </div>
+    <div class="sum-cell sc-screen">
+      <span class="sum-val" id="sum_screen">0h</span>
+      <span class="sum-lbl">📱 Screen</span>
+    </div>
+    <div class="sum-cell sc-offline">
+      <span class="sum-val" id="sum_offline">0h</span>
+      <span class="sum-lbl">🌿 Offline</span>
     </div>
   </div>
 
+  <!-- CHARTS -->
+  <div class="charts-wrap">
+    <div class="chart-panel">
+      <div class="chart-title">// USAGE RADAR</div>
+      <div class="chart-wrap"><canvas id="radarChart"></canvas></div>
+    </div>
+    <div class="chart-panel purple">
+      <div class="chart-title">// CATEGORY SPLIT</div>
+      <div class="chart-wrap"><canvas id="doughnutChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- METRICS + NEURO METERS -->
+  <div class="metrics-wrap">
+
+    <!-- WELLNESS METRICS -->
+    <div class="metric-panel">
+      <div class="panel-title">// WELLNESS METRICS</div>
+
+      <div class="bar-metric">
+        <div class="bar-head">
+          <span class="bar-name">🟢 PRODUCTIVITY</span>
+          <span class="bar-score text-green" id="ms_prod">--</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bf-green" id="mb_prod"></div>
+        </div>
+      </div>
+
+      <div class="bar-metric">
+        <div class="bar-head">
+          <span class="bar-name">💜 ADDICTION RISK</span>
+          <span class="bar-score text-magenta" id="ms_add">--</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bf-purple" id="mb_add"></div>
+        </div>
+      </div>
+
+      <div class="bar-metric">
+        <div class="bar-head">
+          <span class="bar-name">💙 WELLNESS</span>
+          <span class="bar-score text-cyan" id="ms_well">--</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bf-cyan" id="mb_well"></div>
+        </div>
+      </div>
+
+      <div class="bar-metric">
+        <div class="bar-head">
+          <span class="bar-name">😰 STRESS</span>
+          <span class="bar-score text-pink" id="ms_stress2">--</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bf-red" id="mb_stress2"></div>
+        </div>
+      </div>
+
+      <div class="bar-metric">
+        <div class="bar-head">
+          <span class="bar-name">🔥 BURNOUT</span>
+          <span class="bar-score text-orange" id="ms_burn">--</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bf-orange" id="mb_burn"></div>
+        </div>
+      </div>
+
+      <div class="bar-metric">
+        <div class="bar-head">
+          <span class="bar-name">⭐ FOCUS</span>
+          <span class="bar-score text-cyan" id="ms_foc">--</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bf-cyan" id="mb_foc"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- NEURO METERS -->
+    <div class="metric-panel green-top">
+      <div class="panel-title">// NEURO METERS</div>
+
+      <div class="meters-grid">
+
+        <div class="meter-cell">
+          <div class="meter-cell-title">DIGITAL BALANCE</div>
+          <div class="meter-big text-green" id="m_bal_val">--</div>
+          <div class="meter-state text-green" id="m_bal_st">HEALTHY</div>
+          <div class="meter-bar-bg">
+            <div class="meter-bar-fill meter-bar-zero" id="m_bal_bar"></div>
+          </div>
+        </div>
+
+        <div class="meter-cell">
+          <div class="meter-cell-title">ATTENTION SPAN</div>
+          <div class="meter-big text-cyan" id="m_att_val">--</div>
+          <div class="meter-state text-cyan" id="m_att_st">FOCUSED</div>
+          <div class="meter-bar-bg">
+            <div class="meter-bar-fill meter-bar-zero" id="m_att_bar"></div>
+          </div>
+        </div>
+
+        <div class="meter-cell">
+          <div class="meter-cell-title">DOPAMINE OVERLOAD</div>
+          <div class="meter-big text-magenta" id="m_dop_val">--</div>
+          <div class="meter-state text-magenta" id="m_dop_st">BALANCED</div>
+          <div class="meter-bar-bg">
+            <div class="meter-bar-fill meter-bar-zero" id="m_dop_bar"></div>
+          </div>
+        </div>
+
+        <div class="meter-cell">
+          <div class="meter-cell-title">COGNITIVE FATIGUE</div>
+          <div class="meter-big text-orange" id="m_fat_val">--</div>
+          <div class="meter-state text-orange" id="m_fat_st">ALERT</div>
+          <div class="meter-bar-bg">
+            <div class="meter-bar-fill meter-bar-zero" id="m_fat_bar"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /metrics-wrap -->
+
+  <!-- AI RECOMMENDATIONS -->
+  <div class="reco-wrap">
+    <div class="reco-panel">
+      <div class="panel-title">// AI RECOMMENDATION ENGINE</div>
+      <ul class="reco-list" id="recoList">
+        <li class="reco-item"><span>ℹ️</span><span>Adjust any slider to receive personalised
+            recommendations.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- RESULT PANEL -->
+  <div class="result-wrap" id="resultWrap">
+    <div class="result-panel">
+      <div class="result-title">⚡ NEURAL ANALYSIS COMPLETE — FULL REPORT</div>
+      <div id="resultContent"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════ -->
   <script>
-    let radarChart = null, doughnutChart = null;
-    function upd(el, id, sfx) { document.getElementById(id).textContent = el.value + sfx }
+    /* THREE.JS BACKGROUND */
+    (function () {
+      const c = document.getElementById('bg-canvas');
+      const r = new THREE.WebGLRenderer({ canvas: c, alpha: true, antialias: false });
+      r.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+      r.setSize(innerWidth, innerHeight);
+      const scene = new THREE.Scene();
+      const cam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
+      cam.position.z = 5;
 
-    // ── Server health check on load ──────────────────────────────────────────────
-    async function checkServer() {
-      const el = document.getElementById('server-status');
-      const tx = document.getElementById('status-text');
-      try {
-        const r = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            screen_time: 0, gaming_hours: 0, social_media: 0, ai_tools: 0,
-            study_hours: 0, phone_unlocks: 0, notifications: 0, app_switches: 0,
-            focus_score: 50, productivity_score: 50, stress_level: 5, sleep_hours: 7,
-            reels_usage: 0, youtube_usage: 0, chat_usage: 0, night_usage: 0
-          }),
-          signal: AbortSignal.timeout(5000)
-        });
-        if (r.ok) {
-          el.className = 'server-status online'; tx.textContent = 'ONLINE';
-        } else {
-          el.className = 'server-status offline'; tx.textContent = 'ERROR ' + r.status;
-        }
-      } catch (e) {
-        el.className = 'server-status offline'; tx.textContent = 'OFFLINE';
+      const geo = new THREE.BufferGeometry();
+      const N = 1600;
+      const pos = new Float32Array(N * 3);
+      const col = new Float32Array(N * 3);
+      for (let i = 0; i < N; i++) {
+        pos[i * 3] = (Math.random() - .5) * 22;
+        pos[i * 3 + 1] = (Math.random() - .5) * 22;
+        pos[i * 3 + 2] = (Math.random() - .5) * 22;
+        if (Math.random() < .6) { col[i * 3] = 0; col[i * 3 + 1] = .96; col[i * 3 + 2] = 1; }
+        else { col[i * 3] = .75; col[i * 3 + 1] = 0; col[i * 3 + 2] = 1; }
       }
-    }
-    checkServer();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({ size: .03, vertexColors: true, transparent: true, opacity: .5 });
+      scene.add(new THREE.Points(geo, mat));
+      scene.add(new THREE.GridHelper(30, 30, 0x002233, 0x001122));
 
-    // ── Main analysis ─────────────────────────────────────────────────────────────
-    async function runAnalysis() {
-      dismissError();
-      document.getElementById('results-panel').style.display = 'none';
-      document.getElementById('loader-panel').style.display = 'block';
-      const btn = document.getElementById('run-btn');
-      btn.disabled = true;
-      setLoader('PROCESSING NEURAL VECTORS...');
+      let t = 0;
+      (function loop() { requestAnimationFrame(loop); t += .003; scene.rotation.y = t * .06; r.render(scene, cam); })();
+      addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); r.setSize(innerWidth, innerHeight); });
+    })();
 
-      const payload = {
-        screen_time: +document.getElementById('screen_time').value,
-        gaming_hours: +document.getElementById('gaming_hours').value,
-        social_media: +document.getElementById('social_media').value,
-        ai_tools: +document.getElementById('ai_tools').value,
-        study_hours: +document.getElementById('study_hours').value,
-        phone_unlocks: +document.getElementById('phone_unlocks').value,
-        notifications: +document.getElementById('notifications').value,
-        app_switches: +document.getElementById('app_switches').value,
-        focus_score: +document.getElementById('focus_score').value,
-        productivity_score: +document.getElementById('productivity_score').value,
-        stress_level: +document.getElementById('stress_level').value,
-        sleep_hours: +document.getElementById('sleep_hours').value,
-        reels_usage: +document.getElementById('reels_usage').value,
-        youtube_usage: +document.getElementById('youtube_usage').value,
-        chat_usage: +document.getElementById('chat_usage').value,
-        night_usage: +document.getElementById('night_usage').value
-      };
+    /* CHARTS */
+    Chart.defaults.color = 'rgba(180,225,255,.5)';
+    Chart.defaults.font.family = "'Share Tech Mono',monospace";
 
-      try {
-        setLoader('SENDING TO AI ENGINE...');
-        const res = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(30000)
-        });
-
-        // Check HTTP status first — non-2xx means Flask returned an error page/JSON
-        if (!res.ok) {
-          let errDetail = 'HTTP ' + res.status + ' ' + res.statusText;
-          try {
-            const ct = res.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-              const ej = await res.json();
-              errDetail += '\n' + (ej.error || JSON.stringify(ej));
-            } else {
-              // Flask returned an HTML error page — grab first 300 chars
-              const txt = await res.text();
-              errDetail += '\nServer response: ' + txt.replace(/<[^>]+>/g, '').trim().slice(0, 300);
-            }
-          } catch (_) { }
-          showError(errDetail, 'http');
-          return;
-        }
-
-        // Verify response is actually JSON before parsing
-        const ct = res.headers.get('content-type') || '';
-        if (!ct.includes('application/json')) {
-          const raw = await res.text();
-          showError(
-            'Server returned non-JSON response.\nContent-Type: ' + ct +
-            '\nBody preview: ' + raw.replace(/<[^>]+>/g, '').trim().slice(0, 300),
-            'json'
-          );
-          return;
-        }
-
-        setLoader('PARSING AI RESPONSE...');
-        let data;
-        try {
-          data = await res.json();
-        } catch (parseErr) {
-          showError('JSON parse error: ' + parseErr.message, 'json');
-          return;
-        }
-
-        // Check if Flask returned success:false with an error message
-        if (data.success === false) {
-          showError('Backend error: ' + (data.error || 'Unknown server error'), 'backend');
-          return;
-        }
-
-        localStorage.setItem('ns_payload', JSON.stringify(payload));
-        localStorage.setItem('ns_result', JSON.stringify(data));
-        setLoader('RENDERING RESULTS...');
-        setTimeout(() => renderResults(data, payload), 100);
-
-      } catch (e) {
-        if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-          showError('Request timed out after 30 seconds.\nFlask may be processing slowly or is unresponsive.', 'timeout');
-        } else if (e.message && e.message.includes('Failed to fetch')) {
-          showError('Cannot reach Flask server.\nMake sure you ran: python app.py\nand it is listening on http://127.0.0.1:5000', 'network');
-        } else {
-          showError(e.name + ': ' + e.message, 'unknown');
-        }
-      } finally {
-        btn.disabled = false;
-        document.getElementById('loader-panel').style.display = 'none';
+    const rCtx = document.getElementById('radarChart').getContext('2d');
+    const radarChart = new Chart(rCtx, {
+      type: 'radar',
+      data: {
+        labels: ['Gaming', 'Social', 'AI', 'Edu', 'Entertain', 'Shopping', 'Browser'],
+        datasets: [{
+          label: 'Hours',
+          data: [0, 0, 0, 0, 0, 0, 0],
+          backgroundColor: 'rgba(0,245,255,.1)',
+          borderColor: '#00f5ff', borderWidth: 2,
+          pointBackgroundColor: '#00f5ff', pointBorderColor: '#040d14', pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          r: {
+            beginAtZero: true, max: 12,
+            ticks: { stepSize: 3, color: 'rgba(0,245,255,.35)', font: { size: 9 }, backdropColor: 'transparent' },
+            grid: { color: 'rgba(0,245,255,.08)' },
+            pointLabels: { color: 'rgba(200,235,255,.65)', font: { size: 9, weight: '600' } },
+            angleLines: { color: 'rgba(0,245,255,.08)' }
+          }
+        },
+        plugins: { legend: { display: false } }
       }
+    });
+
+    const dCtx = document.getElementById('doughnutChart').getContext('2d');
+    const doughnutChart = new Chart(dCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Gaming', 'Social', 'AI', 'Education', 'Entertainment', 'Shopping', 'Browser', 'Sleep'],
+        datasets: [{
+          data: [0, 0, 0, 0, 0, 0, 0, 7],
+          backgroundColor: ['rgba(255,140,0,.75)', 'rgba(191,0,255,.75)', 'rgba(0,245,255,.75)', 'rgba(0,255,136,.75)', 'rgba(255,61,110,.75)', 'rgba(255,230,0,.75)', 'rgba(126,184,255,.75)', 'rgba(60,60,100,.75)'],
+          borderColor: '#040d14', borderWidth: 2, hoverOffset: 7
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '64%',
+        plugins: { legend: { position: 'right', labels: { font: { size: 9 }, padding: 8, boxWidth: 10, color: 'rgba(200,235,255,.6)' } } }
+      }
+    });
+
+    /* HELPERS */
+    const gv = id => parseFloat(document.getElementById(id).value) || 0;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+    function setMeter(valueId, statusId, barId, value, status, percent) {
+      const valueEl = document.getElementById(valueId);
+      const statusEl = document.getElementById(statusId);
+      const barEl = document.getElementById(barId);
+      if (!valueEl || !statusEl || !barEl) return;
+      valueEl.textContent = percent ? Math.round(value) + "%" : value.toFixed(1);
+      statusEl.textContent = status;
+      barEl.style.width = value + "%";
     }
 
-    function setLoader(msg) { document.getElementById('loader-text').textContent = msg; }
-
-    function showError(detail, type) {
-      document.getElementById('loader-panel').style.display = 'none';
-      document.getElementById('results-panel').style.display = 'none';
-      const panel = document.getElementById('error-panel');
-      const body = document.getElementById('error-body');
-      const steps = document.getElementById('error-steps');
-      body.textContent = detail;
-      const fixes = {
-        network: '<strong>FIX:</strong> Open a terminal and run <strong>python app.py</strong><br>Then refresh this page.',
-        http: '<strong>FIX:</strong> Check Flask terminal for traceback. Common causes: model loading failed, missing .pkl file, import error.',
-        json: '<strong>FIX:</strong> Flask is running but returning HTML (error page). Check the terminal for a Python traceback.',
-        backend: '<strong>FIX:</strong> Flask returned an error. Check terminal output for the full Python traceback.',
-        timeout: '<strong>FIX:</strong> Flask is too slow. Check if calc.exe is hanging or a model is failing to predict.',
-        unknown: '<strong>FIX:</strong> Unexpected error. Open browser DevTools (F12) → Console for full details.',
-      };
-      steps.innerHTML = fixes[type] || fixes.unknown;
-      panel.classList.add('visible');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Also re-check server status
-      checkServer();
+    function setBar(barId, scoreId, value) {
+      const bar = document.getElementById(barId);
+      const score = document.getElementById(scoreId);
+      if (!bar || !score) return;
+      bar.style.width = value + "%";
+      score.textContent = Math.round(value) + "%";
     }
 
-    function dismissError() {
-      document.getElementById('error-panel').classList.remove('visible');
-    }
+    /* MAIN COMPUTE */
+    function compute() {
+      const gaming = gv('s_fcmobile');
+      const instagram = gv('s_instagram');
+      const whatsapp = gv('s_whatsapp');
+      const snapchat = gv('s_snapchat');
+      const linkedin = gv('s_linkedin');
+      const chatgpt = gv('s_chatgpt');
+      const claude = gv('s_claude');
+      const classroom = gv('s_classroom');
+      const youtube = gv('s_youtube');
+      const flipkart = gv('s_flipkart');
+      const zomato = gv('s_zomato');
+      const swiggy = gv('s_swiggy');
+      const blinkit = gv('s_blinkit');
+      const zepto = gv('s_zepto');
+      const brave = gv('s_brave');
+      const sleep = gv('s_sleep');
+      const unlocks = gv('s_unlocks');
+      const notifs = gv('s_notifs');
+      const switches = gv('s_switches');
 
-    function renderResults(d, p) {
-      document.getElementById('loader-panel').style.display = 'none';
-      document.getElementById('results-panel').style.display = 'block';
-      animNum('r_wellness', d.wellness_score ?? 0);
-      animNum('r_addiction', Math.round(d.addiction_probability ?? 0));
-      animNum('r_productivity', d.productivity_index ?? 0);
-      animNum('r_risk', d.risk_score ?? 0);
+      const social = instagram + whatsapp + snapchat + linkedin;
+      const ai = chatgpt + claude;
+      const shop = flipkart + zomato + swiggy + blinkit + zepto;
+      const screen = gaming + social + ai + classroom + youtube + shop + brave;
+      const offline = clamp(24 - screen - sleep, 0, 24);
 
-      const rb = document.getElementById('risk-bars');
-      const barData = [
-        { label: 'Wellness', val: d.wellness_score ?? 0, color: '#00fff0' },
-        { label: 'Productivity', val: d.productivity_index ?? 0, color: '#00ff88' },
-        { label: 'Addiction Risk', val: d.addiction_probability ?? 0, color: '#ff00aa' },
-        { label: 'Overall Risk', val: d.risk_score ?? 0, color: '#ffaa00' }
-      ];
-      rb.innerHTML = barData.map(b =>
-        `<div class="risk-bar-wrap">
-      <div class="risk-bar-label"><span>${b.label}</span><span style="color:${b.color}">${Math.round(b.val)}</span></div>
-      <div class="risk-bar"><div class="risk-fill" style="width:0%;background:${b.color}" data-target="${Math.min(100, Math.round(b.val))}"></div></div>
-    </div>`
+      /* Summary strip */
+      document.getElementById('sum_gaming').textContent = gaming.toFixed(1) + 'h';
+      document.getElementById('sum_social').textContent = social.toFixed(1) + 'h';
+      document.getElementById('sum_ai').textContent = ai.toFixed(1) + 'h';
+      document.getElementById('sum_edu').textContent = classroom.toFixed(1) + 'h';
+      document.getElementById('sum_ent').textContent = youtube.toFixed(1) + 'h';
+      document.getElementById('sum_shop').textContent = shop.toFixed(1) + 'h';
+      document.getElementById('sum_browser').textContent = brave.toFixed(1) + 'h';
+      document.getElementById('sum_screen').textContent = screen.toFixed(1) + 'h';
+      document.getElementById('sum_offline').textContent = offline.toFixed(1) + 'h';
+
+      /* Right panel display sliders */
+      document.getElementById('disp_screen').value = screen;
+      document.getElementById('v_screen').textContent = screen.toFixed(1) + ' hrs';
+      document.getElementById('disp_offline').value = offline;
+      document.getElementById('v_offline').textContent = offline.toFixed(1) + ' hrs';
+
+      /* Metrics */
+      const productivity = clamp(
+        (classroom * 12) + (chatgpt * 5) + (claude * 5) + (brave * 3) + (sleep * 6)
+        - gaming * 6 - (instagram + snapchat) * 5 - youtube * 3,
+        0, 100);
+      const addiction = clamp(
+        gaming * 5 + instagram * 6 + snapchat * 6 + youtube * 2
+        + clamp(unlocks / 300 * 30, 0, 30) + clamp(notifs / 500 * 20, 0, 20),
+        0, 100);
+      const wellness = clamp(
+        sleep * 6 + classroom * 8 + offline * 3
+        - gaming * 4 - social * 3 - (screen > 10 ? (screen - 10) * 5 : 0),
+        0, 100);
+      const stress = clamp(screen * 4 + notifs / 50 + unlocks / 30 - sleep * 3, 0, 100);
+      const burnout = clamp((screen > 8 ? (screen - 8) * 8 : 0) + stress * .3 - sleep * 4 - offline * 2, 0, 100);
+      const focus = clamp(100 - social * 5 - notifs / 20 - unlocks / 10 - youtube * 3 + sleep * 2 + classroom * 4 - switches / 10, 0, 100);
+
+      /* Neuro meters */
+      const balance = clamp(100 - screen * 5 - addiction * .3 + offline * 2, 0, 100);
+      const attention = clamp(100 - social * 5 - notifs / 25 - unlocks / 12 - switches / 8 + sleep * 1.5 + classroom * 2, 0, 100);
+      const dopamine = clamp(gaming * 7 + instagram * 6 + snapchat * 6 + youtube * 4, 0, 100);
+      const fatigue = clamp(screen * 4 - sleep * 5 + (screen > 10 ? (screen - 10) * 6 : 0) + notifs / 40, 0, 100);
+
+      const balSt = balance >= 70 ? 'HEALTHY' : balance >= 45 ? 'MODERATE' : balance >= 25 ? 'ADDICTIVE' : 'CRITICAL';
+      const attSt = attention >= 75 ? 'FOCUSED' : attention >= 50 ? 'DISTRACTED' : attention >= 25 ? 'SCATTERED' : 'FRAGMENTED';
+      const dopSt = dopamine < 30 ? 'BALANCED' : dopamine < 55 ? 'ELEVATED' : dopamine < 75 ? 'HIGH' : 'OVERLOADED';
+      const fatSt = fatigue < 25 ? 'ALERT' : fatigue < 50 ? 'TIRED' : fatigue < 75 ? 'FATIGUED' : 'EXHAUSTED';
+
+      /* Update bars */
+      setBar('mb_prod', 'ms_prod', productivity);
+      setBar('mb_add', 'ms_add', addiction);
+      setBar('mb_well', 'ms_well', wellness);
+      setBar('mb_stress2', 'ms_stress2', stress);
+      setBar('mb_burn', 'ms_burn', burnout);
+      setBar('mb_foc', 'ms_foc', focus);
+
+      /* Right panel live scores */
+      document.getElementById('disp_prod').value = productivity;
+      document.getElementById('v_prod').textContent = Math.round(productivity) + '%';
+      document.getElementById('disp_focus').value = focus;
+      document.getElementById('v_focus').textContent = Math.round(focus) + '%';
+      document.getElementById('disp_stress').value = clamp(stress / 10, 0, 10).toFixed(1);
+      document.getElementById('v_stress').textContent = (stress / 10).toFixed(1) + '/10';
+
+      setMeter('m_bal_val', 'm_bal_st', 'm_bal_bar', balance, balSt, true);
+      setMeter('m_att_val', 'm_att_st', 'm_att_bar', attention, attSt, true);
+      setMeter('m_dop_val', 'm_dop_st', 'm_dop_bar', dopamine, dopSt, false);
+      setMeter('m_fat_val', 'm_fat_st', 'm_fat_bar', fatigue, fatSt, false);
+
+      /* Charts */
+      radarChart.data.datasets[0].data = [gaming, social, ai, classroom, youtube, shop, brave];
+      radarChart.update('none');
+      doughnutChart.data.datasets[0].data = [gaming, social, ai, classroom, youtube, shop, brave, sleep];
+      doughnutChart.update('none');
+
+      /* Recommendations */
+      const recos = [];
+      if (instagram > 2) recos.push({ cls: 'warn', ico: '⚠️', txt: `Reduce Instagram (${instagram}h) → aim for under 1.5h/day.` });
+      if (gaming > 3) recos.push({ cls: 'danger', ico: '🎮', txt: `Games at ${gaming}h — cap to 1.5h to improve sleep & productivity.` });
+      if (snapchat > 1.5) recos.push({ cls: 'warn', ico: '👻', txt: `Snapchat (${snapchat}h) spikes dopamine. Set a 45-min daily limit.` });
+      if (youtube > 3) recos.push({ cls: 'warn', ico: '📺', txt: `YouTube at ${youtube}h. Swap 1h for Google Classroom or Brave.` });
+      if (sleep < 6) recos.push({ cls: 'danger', ico: '😴', txt: `Only ${sleep}h sleep detected! Target 7–8h for cognitive recovery.` });
+      if (sleep >= 7) recos.push({ cls: 'good', ico: '✅', txt: `Good sleep (${sleep}h) is boosting your wellness and productivity.` });
+      if (screen > 10) recos.push({ cls: 'danger', ico: '📱', txt: `Screen time ${screen.toFixed(1)}h is high. Schedule 2 digital-free hours.` });
+      if (classroom > 0) recos.push({ cls: 'good', ico: '📚', txt: `${classroom}h on Google Classroom is pushing your productivity up!` });
+      if (notifs > 200) recos.push({ cls: 'warn', ico: '🔔', txt: `${notifs} notifications/day fragments your focus. Enable 3h DND blocks.` });
+      if (unlocks > 100) recos.push({ cls: 'warn', ico: '📲', txt: `${unlocks} phone unlocks. Try grayscale mode to reduce habit loops.` });
+      if (ai > 3) recos.push({ cls: 'good', ico: '🤖', txt: `${ai}h on AI tools — leverage for active learning, not passive use.` });
+      if (offline > 4) recos.push({ cls: 'good', ico: '🌿', txt: `${offline.toFixed(1)}h offline is excellent for mental recovery.` });
+      if (shop > 2) recos.push({ cls: 'warn', ico: '🛒', txt: `${shop.toFixed(1)}h on food/shopping apps. Batch orders to cut dopamine loops.` });
+      if (fatigue > 65) recos.push({ cls: 'danger', ico: '🧠', txt: `Cognitive Fatigue at ${Math.round(fatigue)}%. Use 20-min Pomodoro breaks.` });
+      if (addiction > 60) recos.push({ cls: 'danger', ico: '🚨', txt: `Addiction risk ${Math.round(addiction)}%. Consider a 48h digital detox weekend.` });
+      if (!recos.length) recos.push({ cls: 'good', ico: '🌟', txt: 'Excellent digital habits! Your usage pattern is healthy and balanced.' });
+
+      document.getElementById('recoList').innerHTML = recos.map(r =>
+        `<li class="reco-item ${r.cls}"><span>${r.ico}</span><span>${r.txt}</span></li>`
       ).join('');
-      setTimeout(() => rb.querySelectorAll('.risk-fill').forEach(f => f.style.width = f.dataset.target + '%'), 100);
 
-      document.getElementById('behavior-badge-wrap').innerHTML =
-        `<div class="behavior-badge">&#129710; ${d.behavior_label || 'Unknown'} | Trend: ${d.trend_label || 'Stable'}</div>`;
-
-      const insights = Array.isArray(d.insights) ? d.insights : ['No insights available.'];
-      document.getElementById('insights-list').innerHTML =
-        insights.map(i => `<div class="insight-item">${i}</div>`).join('');
-
-      buildRadar(p);
-      buildDoughnut(p);
+      return { gaming, social, ai, edu: classroom, ent: youtube, shop, browser: brave, screen, offline, sleep, unlocks, notifs, productivity, addiction, wellness, stress, burnout, focus, balance, balSt, attention, attSt, dopamine, dopSt, fatigue, fatSt };
     }
 
-    function animNum(id, target) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      let v = 0, step = Math.max(target / 40, 1);
-      const t = setInterval(() => {
-        v += step;
-        el.textContent = Math.min(Math.round(v), target);
-        if (v >= target) clearInterval(t);
-      }, 30);
-    }
+    /* SLIDER BINDINGS */
+    const allSliders = [
+      ['s_fcmobile', 'v_fcmobile'],
+      ['s_instagram', 'v_instagram'],
+      ['s_whatsapp', 'v_whatsapp'],
+      ['s_snapchat', 'v_snapchat'],
+      ['s_linkedin', 'v_linkedin'],
+      ['s_chatgpt', 'v_chatgpt'],
+      ['s_claude', 'v_claude'],
+      ['s_classroom', 'v_classroom'],
+      ['s_youtube', 'v_youtube'],
+      ['s_flipkart', 'v_flipkart'],
+      ['s_zomato', 'v_zomato'],
+      ['s_swiggy', 'v_swiggy'],
+      ['s_blinkit', 'v_blinkit'],
+      ['s_zepto', 'v_zepto'],
+      ['s_brave', 'v_brave'],
+      ['s_sleep', 'v_sleep'],
+    ];
 
-    function buildRadar(p) {
-      if (radarChart) radarChart.destroy();
-      const ctx = document.getElementById('radarChart').getContext('2d');
-      radarChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-          labels: ['Screen', 'Gaming', 'Social', 'Reels', 'Night', 'Focus', 'Productivity', 'Study'],
-          datasets: [{
-            label: 'Your Profile',
-            data: [p.screen_time / 16 * 100, p.gaming_hours / 12 * 100, p.social_media / 10 * 100,
-            p.reels_usage / 6 * 100, p.night_usage / 6 * 100, p.focus_score,
-            p.productivity_score, p.study_hours / 14 * 100],
-            backgroundColor: 'rgba(0,255,240,0.1)', borderColor: '#00fff0',
-            pointBackgroundColor: '#00fff0', pointBorderColor: '#00fff0', borderWidth: 1.5
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            r: {
-              grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false },
-              pointLabels: { color: 'rgba(255,255,255,0.5)', font: { size: 10, family: 'Share Tech Mono' } }
-            }
-          },
-          plugins: { legend: { display: false } }
-        }
+    const HOUR_SLIDER_IDS = allSliders.map(([sid]) => sid);
+
+    function enforce24HourCap(changedId, requestedValue) {
+      let othersTotal = 0;
+      HOUR_SLIDER_IDS.forEach(sid => {
+        if (sid !== changedId) othersTotal += gv(sid);
       });
+      const maxAllowed = clamp(24 - othersTotal, 0, 24);
+      return Math.min(requestedValue, maxAllowed);
     }
 
-    function buildDoughnut(p) {
-      if (doughnutChart) doughnutChart.destroy();
-      const ctx = document.getElementById('doughnutChart').getContext('2d');
-      doughnutChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Gaming', 'Social', 'Reels', 'YouTube', 'Chat', 'AI Tools', 'Study'],
-          datasets: [{
-            data: [p.gaming_hours, p.social_media, p.reels_usage, p.youtube_usage,
-            p.chat_usage, p.ai_tools, p.study_hours],
-            backgroundColor: ['rgba(255,0,170,.7)', 'rgba(123,47,255,.7)', 'rgba(255,100,50,.7)',
-              'rgba(255,170,0,.7)', 'rgba(0,180,255,.7)', 'rgba(0,255,136,.7)', 'rgba(0,255,240,.7)'],
-            borderColor: 'rgba(0,0,0,.3)', borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { labels: { color: 'rgba(255,255,255,0.5)', font: { size: 9, family: 'Share Tech Mono' }, boxWidth: 10 } } }
-        }
+    allSliders.forEach(([sid, vid]) => {
+      document.getElementById(sid).addEventListener('input', function () {
+        let v = parseFloat(this.value);
+        v = enforce24HourCap(sid, v);
+        this.value = v;
+        document.getElementById(vid).textContent = v.toFixed(1).replace(/\.0$/, '') + ' hrs';
+        compute();
       });
-    }
+    });
 
-    // Three.js background
-    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, .1, 1000);
-    const rend = new THREE.WebGLRenderer({ canvas: document.getElementById('bg3d'), alpha: true, antialias: true });
-    rend.setSize(innerWidth, innerHeight); rend.setPixelRatio(Math.min(devicePixelRatio, 2)); cam.position.z = 40;
-    const pts = new Float32Array(2000); for (let i = 0; i < 2000; i++)pts[i] = (Math.random() - .5) * 120;
-    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
-    const mat = new THREE.PointsMaterial({ size: .12, color: 0x7b2fff, transparent: true, opacity: .4 });
-    const stars = new THREE.Points(geo, mat); scene.add(stars);
-    const gGeo = new THREE.PlaneGeometry(120, 120, 30, 30);
-    const gMat = new THREE.MeshBasicMaterial({ color: 0x7b2fff, wireframe: true, transparent: true, opacity: .03 });
-    const grid = new THREE.Mesh(gGeo, gMat); grid.rotation.x = -Math.PI / 2; grid.position.y = -30; scene.add(grid);
-    let ti = 0; (function anim() { requestAnimationFrame(anim); ti += .001; stars.rotation.y = ti * .2; grid.position.z = (ti * 1.5) % 4; rend.render(scene, cam) })();
-    window.addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); rend.setSize(innerWidth, innerHeight) });
+    ['s_unlocks', 's_notifs', 's_switches'].forEach(sid => {
+      const vidMap = { 's_unlocks': 'v_unlocks', 's_notifs': 'v_notifs', 's_switches': 'v_switches' };
+      document.getElementById(sid).addEventListener('input', function () {
+        document.getElementById(vidMap[sid]).textContent = Math.round(parseFloat(this.value));
+        compute();
+      });
+    });
+
+    /* EXECUTE BUTTON — renders the full report panel inline (no backend required) */
+    document.getElementById('execBtn').addEventListener('click', () => {
+      const d = compute();
+      const balEmoji = d.balance >= 70 ? '🟢' : d.balance >= 45 ? '🟡' : d.balance >= 25 ? '🟠' : '🔴';
+      const risk = d.addiction < 30 ? 'LOW RISK' : d.addiction < 55 ? 'MODERATE RISK' : d.addiction < 75 ? 'HIGH RISK' : '⚠ CRITICAL';
+
+      document.getElementById('resultContent').innerHTML = `
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;font-size:12px;letter-spacing:1.5px;">
+    <div style="background:rgba(0,245,255,.04);border:1px solid rgba(0,245,255,.15);border-radius:4px;padding:16px;">
+      <div style="color:var(--cyan);letter-spacing:2.5px;margin-bottom:10px;font-size:10px;">SCREEN PROFILE</div>
+      <div style="margin-bottom:5px">📱 SCREEN TIME &nbsp;<span style="color:#fff;float:right">${d.screen.toFixed(1)}h</span></div>
+      <div style="margin-bottom:5px">😴 SLEEP &nbsp;<span style="color:var(--cyan);float:right">${d.sleep}h</span></div>
+      <div style="margin-bottom:5px">🌿 OFFLINE &nbsp;<span style="color:var(--green);float:right">${d.offline.toFixed(1)}h</span></div>
+      <div style="margin-bottom:5px">📲 UNLOCKS &nbsp;<span style="color:var(--orange);float:right">${d.unlocks}</span></div>
+      <div>🔔 NOTIFICATIONS &nbsp;<span style="color:var(--magenta);float:right">${d.notifs}</span></div>
+    </div>
+    <div style="background:rgba(191,0,255,.04);border:1px solid rgba(191,0,255,.15);border-radius:4px;padding:16px;">
+      <div style="color:var(--magenta);letter-spacing:2.5px;margin-bottom:10px;font-size:10px;">NEURAL ASSESSMENT</div>
+      <div style="margin-bottom:5px">${balEmoji} BALANCE &nbsp;<span style="color:#fff;float:right">${d.balSt}</span></div>
+      <div style="margin-bottom:5px">🧠 PRODUCTIVITY &nbsp;<span style="color:var(--green);float:right">${Math.round(d.productivity)}%</span></div>
+      <div style="margin-bottom:5px">💜 ADDICTION &nbsp;<span style="color:var(--magenta);float:right">${risk}</span></div>
+      <div style="margin-bottom:5px">⭐ FOCUS &nbsp;<span style="color:var(--cyan);float:right">${Math.round(d.focus)}%</span></div>
+      <div>🔥 BURNOUT &nbsp;<span style="color:var(--red);float:right">${Math.round(d.burnout)}%</span></div>
+    </div>
+    <div style="background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.15);border-radius:4px;padding:16px;">
+      <div style="color:var(--green);letter-spacing:2.5px;margin-bottom:10px;font-size:10px;">NEURO METERS</div>
+      <div style="margin-bottom:5px">⚡ ATTENTION &nbsp;<span style="color:var(--cyan);float:right">${d.attSt}</span></div>
+      <div style="margin-bottom:5px">🎯 DOPAMINE &nbsp;<span style="color:var(--magenta);float:right">${d.dopSt}</span></div>
+      <div style="margin-bottom:5px">🧩 FATIGUE &nbsp;<span style="color:var(--orange);float:right">${d.fatSt}</span></div>
+      <div style="margin-bottom:5px">💙 WELLNESS &nbsp;<span style="color:var(--cyan);float:right">${Math.round(d.wellness)}%</span></div>
+      <div>😰 STRESS &nbsp;<span style="color:var(--pink);float:right">${(d.stress / 10).toFixed(1)}/10</span></div>
+    </div>
+  </div>
+  <div style="margin-top:14px;padding:14px 16px;background:rgba(0,245,255,.03);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--txt2);line-height:1.7;letter-spacing:1px;">
+    <strong style="color:var(--cyan)">// SUMMARY:</strong> &nbsp;
+    Digital footprint of <strong style="color:#fff">${d.screen.toFixed(1)}h</strong> screen time across
+    ${[d.gaming > 0 ? 'gaming' : '', d.social > 0 ? 'social media' : '', d.ai > 0 ? 'AI tools' : '', d.edu > 0 ? 'education' : '', d.ent > 0 ? 'entertainment' : '', d.shop > 0 ? 'shopping' : '', d.browser > 0 ? 'browsing' : ''].filter(Boolean).join(', ')}.
+    Sleep: <strong style="color:var(--green)">${d.sleep}h</strong> · Offline: <strong style="color:var(--green)">${d.offline.toFixed(1)}h</strong> · Wellness: <strong style="color:var(--cyan)">${Math.round(d.wellness)}%</strong>.
+    ${d.addiction > 60 ? '⚠️ Elevated addiction indicators — consider a structured digital wellness plan.' : d.wellness > 65 ? '✅ Digital habits within a healthy range.' : '⚡ Some areas need attention for better digital wellbeing.'}
+  </div>`;
+
+      document.getElementById('resultWrap').classList.add('active');
+      document.getElementById('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    /* INIT */
+    compute();
   </script>
 </body>
 
